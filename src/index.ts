@@ -5,6 +5,7 @@ import { getCookie } from "hono/cookie";
 
 import authRoutes from "./routes/auth";
 import refreshRouter from "./routes/refreshToken";
+import inventoryRoutes from "./routes/inventory";
 
 const app = new Hono();
 
@@ -41,7 +42,8 @@ app.use("*", async (c, next) => {
 });
 
 app.route("/auth", authRoutes);
-app.route("refresh", refreshRouter);
+app.route("/refresh", refreshRouter);
+app.route("/inventory", inventoryRoutes);
 
 const PORT = process.env.PORT;
 

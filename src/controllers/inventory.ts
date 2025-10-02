@@ -1,0 +1,70 @@
+import { getSupabaseForRequest } from "../utilities/supabase";
+import { successResponse, errorResponse } from "../utilities/responses";
+import {
+  inventoryInsertSchema,
+  inventoryUpdateSchema,
+} from "../schemas/inventorySchemas";
+import {
+  listInventory,
+  createInventory,
+  updateInventory,
+  deleteInventory,
+} from "../queries/inventory";
+
+export const getInventory = async (c: any) => {
+  try {
+    const db = getSupabaseForRequest(c);
+    const { data, error } = await listInventory(db);
+    if (error) return errorResponse(error.message, 400);
+    return successResponse(data ?? [], "Inventory fetched");
+  } catch (e: any) {
+    console.error(e);
+    return errorResponse(e.message || "Unexpected error", 500);
+  }
+};
+
+export const addInventory = async (c: any) => {
+  try {
+    const body = await c.req.json();
+    const parsed = inventoryInsertSchema.safeParse(body);
+    if (!parsed.success) return errorResponse("Invalid input", 400);
+    const db = getSupabaseForRequest(c);
+    const { data, error } = await createInventory(db, parsed.data);
+    if (error) return errorResponse(error.message, 400);
+    return successResponse(data, "Inventory item created");
+  } catch (e: any) {
+    console.error(e);
+    return errorResponse(e.message || "Unexpected error", 500);
+  }
+};
+
+export const editInventory = async (c: any) => {
+  try {
+    const id = c.req.param("id");
+    if (!id) return errorResponse("Missing id", 400);
+    const body = await c.req.json();
+    const parsed = inventoryUpdateSchema.safeParse(body);
+    if (!parsed.success) return errorResponse("Invalid input", 400);
+    const db = getSupabaseForRequest(c);
+    const { data, error } = await updateInventory(db, id, parsed.data);
+    if (error) return errorResponse(error.message, 400);
+    return successResponse(data, "Inventory item updated");
+  } catch (e: any) {
+    console.error(e);
+    return errorResponse(e.message || "Unexpected error", 500);
+  }
+};
+
+export const removeInventory = async (c: any) => {
+  try {
+    const id = c.req.param("id");
+    if (!id) return errorResponse("Missing id", 400);
+    const db = getSupabaseForRequest(c);
+    const { data, error } = await deleteInventory(db, id);
+    if (error) return errorResponse(error.message, 400);
+    return successResponse(data, "Inventory item deleted");
+  } catch (e: any) {
+    console.error(e);
+    return errorResponse(e.message || "Unexpected error", 500);
+  }
+};

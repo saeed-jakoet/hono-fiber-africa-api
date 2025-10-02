@@ -2,3 +2,5 @@
 .env
 # deps
 node_modules/
+
+/.claude
