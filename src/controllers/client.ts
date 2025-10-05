@@ -4,7 +4,7 @@ import {
   clientInsertSchema,
   clientUpdateSchema,
 } from "../schemas/clientSchema";
-import { listClients, createClient, updateClient } from "../queries/client";
+import { listClients, getClientById, createClient, updateClient } from "../queries/client";
 
 export const getClients = async (c: any) => {
   try {
@@ -14,6 +14,21 @@ export const getClients = async (c: any) => {
     return successResponse(data ?? [], "Clients fetches");
   } catch (e: any) {
     console.log(e);
+    return errorResponse(e.message || "Unexpected error", 500);
+  }
+};
+
+export const getClient = async (c: any) => {
+  try {
+    const id = c.req.param("id");
+    if (!id) return errorResponse("Missing id", 400);
+    const db = getSupabaseForRequest(c);
+    const { data, error } = await getClientById(db, id);
+    if (error) return errorResponse(error.message, 400);
+    if (!data) return errorResponse("Client not found", 404);
+    return successResponse(data, "Client fetched");
+  } catch (e: any) {
+    console.error(e);
     return errorResponse(e.message || "Unexpected error", 500);
   }
 };

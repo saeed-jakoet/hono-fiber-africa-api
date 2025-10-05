@@ -6,9 +6,9 @@ import {
 } from "../schemas/inventorySchemas";
 import {
   listInventory,
+  getInventoryById,
   createInventory,
   updateInventory,
-  deleteInventory,
 } from "../queries/inventory";
 
 export const getInventory = async (c: any) => {
@@ -17,6 +17,21 @@ export const getInventory = async (c: any) => {
     const { data, error } = await listInventory(db);
     if (error) return errorResponse(error.message, 400);
     return successResponse(data ?? [], "Inventory fetched");
+  } catch (e: any) {
+    console.error(e);
+    return errorResponse(e.message || "Unexpected error", 500);
+  }
+};
+
+export const getInventoryItem = async (c: any) => {
+  try {
+    const id = c.req.param("id");
+    if (!id) return errorResponse("Missing id", 400);
+    const db = getSupabaseForRequest(c);
+    const { data, error } = await getInventoryById(db, id);
+    if (error) return errorResponse(error.message, 400);
+    if (!data) return errorResponse("Inventory item not found", 404);
+    return successResponse(data, "Inventory item fetched");
   } catch (e: any) {
     console.error(e);
     return errorResponse(e.message || "Unexpected error", 500);

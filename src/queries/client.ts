@@ -6,6 +6,9 @@ const TABLE = "clients";
 export const listClients = async (db: SupabaseClient) =>
   db.from(TABLE).select("*");
 
+export const getClientById = async (db: SupabaseClient, id: string) =>
+  db.from(TABLE).select("*").eq("id", id).single();
+
 export const createClient = async (db: SupabaseClient, payload: ClientInsert) =>
   db.from(TABLE).insert(payload).select("*").single();
 

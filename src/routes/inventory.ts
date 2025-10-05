@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import {
   getInventory,
+  getInventoryItem,
   addInventory,
   editInventory,
 } from "../controllers/inventory";
@@ -11,7 +12,8 @@ const inventoryRoutes = new Hono();
 inventoryRoutes.use("*", requireRole(["super_admin", "admin"]));
 
 inventoryRoutes.get("/", getInventory);
+inventoryRoutes.get("/:id", getInventoryItem);
 inventoryRoutes.post("/", addInventory);
-inventoryRoutes.patch("/:id", editInventory);
+inventoryRoutes.put("/:id", editInventory);
 
 export default inventoryRoutes;
