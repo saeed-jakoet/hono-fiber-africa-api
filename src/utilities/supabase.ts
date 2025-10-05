@@ -12,7 +12,13 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 // Base anon client (no user session) for public auth calls (signUp/signIn)
-export const database: SupabaseClient = createClient(supabaseUrl, supabaseKey);
+export const database: SupabaseClient = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+  },
+});
 
 // Create a per-request client bound to the JWT from cookies
 export function getSupabaseForRequest(c: any): SupabaseClient {
@@ -20,5 +26,10 @@ export function getSupabaseForRequest(c: any): SupabaseClient {
   const accessToken = getCookie(c, "accessToken") || "";
   return createClient(supabaseUrl, supabaseKey, {
     accessToken: async () => accessToken,
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
   });
 }
