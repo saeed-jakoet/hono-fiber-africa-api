@@ -1,35 +1,30 @@
 import { getSupabaseForRequest } from "../utilities/supabase";
-import { successResponse, errorResponse } from "../utilities/responses";
+import { errorResponse, successResponse } from "../utilities/responses";
 import {
-  inventoryInsertSchema,
-  inventoryUpdateSchema,
-} from "../schemas/inventorySchemas";
-import {
-  listInventory,
-  createInventory,
-  updateInventory,
-  deleteInventory,
-} from "../queries/inventory";
+  clientInsertSchema,
+  clientUpdateSchema,
+} from "../schemas/clientSchema";
+import { listClients, createClient, updateClient } from "../queries/client";
 
-export const getInventory = async (c: any) => {
+export const getClients = async (c: any) => {
   try {
     const db = getSupabaseForRequest(c);
-    const { data, error } = await listInventory(db);
+    const { data, error } = await listClients(db);
     if (error) return errorResponse(error.message, 400);
-    return successResponse(data ?? [], "Inventory fetched");
+    return successResponse(data ?? [], "Clients fetches");
   } catch (e: any) {
-    console.error(e);
+    console.log(e);
     return errorResponse(e.message || "Unexpected error", 500);
   }
 };
 
-export const addInventory = async (c: any) => {
+export const addClient = async (c: any) => {
   try {
     const body = await c.req.json();
-    const parsed = inventoryInsertSchema.safeParse(body);
+    const parsed = clientInsertSchema.safeParse(body);
     if (!parsed.success) return errorResponse("Invalid input", 400);
     const db = getSupabaseForRequest(c);
-    const { data, error } = await createInventory(db, parsed.data);
+    const { data, error } = await createClient(db, parsed.data);
     if (error) return errorResponse(error.message, 400);
     return successResponse(data, "Inventory item created");
   } catch (e: any) {
@@ -38,15 +33,15 @@ export const addInventory = async (c: any) => {
   }
 };
 
-export const editInventory = async (c: any) => {
+export const editClient = async (c: any) => {
   try {
     const id = c.req.param("id");
     if (!id) return errorResponse("Missing id", 400);
     const body = await c.req.json();
-    const parsed = inventoryUpdateSchema.safeParse(body);
+    const parsed = clientUpdateSchema.safeParse(body);
     if (!parsed.success) return errorResponse("Invalid input", 400);
     const db = getSupabaseForRequest(c);
-    const { data, error } = await updateInventory(db, id, parsed.data);
+    const { data, error } = await updateClient(db, id, parsed.data);
     if (error) return errorResponse(error.message, 400);
     return successResponse(data, "Inventory item updated");
   } catch (e: any) {
@@ -54,5 +49,3 @@ export const editInventory = async (c: any) => {
     return errorResponse(e.message || "Unexpected error", 500);
   }
 };
-
-
