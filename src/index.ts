@@ -7,6 +7,7 @@ import authRoutes from "./routes/auth";
 import refreshRouter from "./routes/refreshToken";
 import inventoryRoutes from "./routes/inventory";
 import clientRoutes from "./routes/clients";
+import dropCableRoutes from "./routes/dropCable";
 
 const app = new Hono();
 
@@ -46,6 +47,7 @@ app.route("/auth", authRoutes);
 app.route("/refresh", refreshRouter);
 app.route("/inventory", inventoryRoutes);
 app.route("/client", clientRoutes);
+app.route("/drop-cable", dropCableRoutes);
 
 const PORT = process.env.PORT;
 
