@@ -9,6 +9,7 @@ import inventoryRoutes from "./routes/inventory";
 import clientRoutes from "./routes/clients";
 import dropCableRoutes from "./routes/dropCable";
 import logRoutes from "./routes/logs";
+import documentsRoutes from "./routes/documents";
 
 const app = new Hono();
 
@@ -50,6 +51,7 @@ app.route("/inventory", inventoryRoutes);
 app.route("/client", clientRoutes);
 app.route("/drop-cable", dropCableRoutes);
 app.route("/log", logRoutes);
+app.route("/documents", documentsRoutes);
 
 const PORT = process.env.PORT;
 
