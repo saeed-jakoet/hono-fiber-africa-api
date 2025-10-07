@@ -41,20 +41,21 @@ export const dropCableInsertSchema = z.object({
   // Technicals
   dpc_distance_meters: z.number().nonnegative().optional(),
 
-  // Survey fields
-  survey_date: z.string().optional(), // ISO date (yyyy-mm-dd)
-  survey_time: z.string().optional(), // HH:MM:SS
-
   // Timeline fields
+  // Survey fields
+  survey_date: z.string().optional(),
+  survey_time: z.string().optional(), 
+  survey_completed_at: z.string().optional(),
+  installation_scheduled_date: z.string().optional(),
+  installation_scheduled_time: z.string().optional(),
+  installation_completed_date: z.string().optional(),
+  lla_sent_at: z.string().optional(),
+  lla_received_at: z.string().optional(),
+  as_built_submitted_at: z.string().optional(),
+  //TODO: remove unused
   order_received_at: z.string().optional(),
   installation_date_requested_at: z.string().optional(),
   survey_scheduled_for: z.string().optional(),
-  survey_completed_at: z.string().optional(),
-  lla_sent_at: z.string().optional(),
-  lla_received_at: z.string().optional(),
-  installation_scheduled_for: z.string().optional(),
-  installation_completed_at: z.string().optional(),
-  as_built_submitted_at: z.string().optional(),
 
   // Assignment
   technician_name: z.string().optional(),
