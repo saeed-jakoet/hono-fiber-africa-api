@@ -2,7 +2,6 @@ import { getSupabaseForRequest } from "../utilities/supabase";
 import { successResponse, errorResponse } from "../utilities/responses";
 import {
   dropCableInsertSchema,
-  dropCableUpdateSchema,
   dropCableUpdateWithIdSchema,
 } from "../schemas/dropCableSchemas";
 import {

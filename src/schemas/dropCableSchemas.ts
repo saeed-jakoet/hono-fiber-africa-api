@@ -19,8 +19,7 @@ export const dropCableInsertSchema = z.object({
   // Client relationship
   client_id: z.string().uuid(),
 
-  // Core identifiers
-  job_number: z.string().min(1).optional(),
+  // Core identifier
   circuit_number: z.string().min(1),
 
   // Business/site info
@@ -29,7 +28,7 @@ export const dropCableInsertSchema = z.object({
   physical_address_site_b: z.string().optional(),
 
   // People
-  dfa_pm: z.string().optional(),
+  pm: z.string().optional(),
   client: z.string().optional(),
   client_contact_name: z.string().optional(),
   end_client_contact_name: z.string().optional(),
@@ -55,7 +54,7 @@ export const dropCableInsertSchema = z.object({
   lla_received_at: z.string().optional(),
   installation_scheduled_for: z.string().optional(),
   installation_completed_at: z.string().optional(),
-  as_built_submitted_at: z.string().optional(),
+  as_build_submitted_at: z.string().optional(),
 
   // Assignment
   technician_name: z.string().optional(),
