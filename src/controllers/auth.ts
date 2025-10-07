@@ -152,7 +152,6 @@ export const updateAuthUserController = async (c: any) => {
     if (!id) return errorResponse("Missing user id", 400);
 
     const overrideEnabled = process.env.ALLOW_AUTH_UPDATE_OVERRIDE === "true";
-
     if (!overrideEnabled) {
       // Normal mode: only super_admin can update any user
       if (callerRole !== "super_admin") return errorResponse("Forbidden", 403);
