@@ -54,7 +54,7 @@ export const dropCableInsertSchema = z.object({
   lla_received_at: z.string().optional(),
   installation_scheduled_for: z.string().optional(),
   installation_completed_at: z.string().optional(),
-  as_build_submitted_at: z.string().optional(),
+  as_built_submitted_at: z.string().optional(),
 
   // Assignment
   technician_name: z.string().optional(),

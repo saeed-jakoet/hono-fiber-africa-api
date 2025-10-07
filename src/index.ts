@@ -8,6 +8,7 @@ import refreshRouter from "./routes/refreshToken";
 import inventoryRoutes from "./routes/inventory";
 import clientRoutes from "./routes/clients";
 import dropCableRoutes from "./routes/dropCable";
+import logRoutes from "./routes/logs";
 
 const app = new Hono();
 
@@ -48,6 +49,7 @@ app.route("/refresh", refreshRouter);
 app.route("/inventory", inventoryRoutes);
 app.route("/client", clientRoutes);
 app.route("/drop-cable", dropCableRoutes);
+app.route("/log", logRoutes);
 
 const PORT = process.env.PORT;
 
@@ -58,5 +60,5 @@ Bun.serve({
 });
 
 console.log(
-  `🚀 Hono Mission Control Server is running on http://localhost:${PORT}`
+  `🚀 Hono Fiber Africa Control Center Server is running on http://localhost:${PORT}`
 );

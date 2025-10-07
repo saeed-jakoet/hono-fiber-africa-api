@@ -23,4 +23,9 @@ export const updateDropCable = async (
 export const listDropCablesByClient = async (
   db: SupabaseClient,
   clientId: string
-) => db.from(TABLE).select("*").eq("client_id", clientId).order("created_at", { ascending: false });
+) =>
+  db
+    .from(TABLE)
+    .select("*, clients(company_name)")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false });
