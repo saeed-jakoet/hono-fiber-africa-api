@@ -3,6 +3,7 @@ import { successResponse, errorResponse } from "../utilities/responses";
 import { signUpSchema, signInSchema } from "../schemas/authSchemas";
 import { getCookie, setCookie } from "hono/cookie";
 import { database, getSupabaseForRequest } from "../utilities/supabase";
+import { updateAuthUserTable } from "../queries/auth";
 
 export const userSignUp = async (c: any) => {
   try {
@@ -132,4 +133,42 @@ export const userLogout = async (c: any) => {
     maxAge: 0,
   });
   return c.json({ message: "Logged out" });
+};
+
+export const updateAuthUserController = async (c: any) => {
+  try {
+    const token = getCookie(c, "accessToken");
+    if (!token) return errorResponse("Not authenticated", 401);
+
+    const { data: me, error: meErr } = await database.auth.getUser(
+      token as string
+    );
+    if (meErr || !me?.user) return errorResponse("Not authenticated", 401);
+
+    const callerRole = me.user.user_metadata?.role;
+
+    const payload = await c.req.json();
+    const { id, ...fields } = payload || {};
+    if (!id) return errorResponse("Missing user id", 400);
+
+    const overrideEnabled = process.env.ALLOW_AUTH_UPDATE_OVERRIDE === "true";
+
+    if (!overrideEnabled) {
+      // Normal mode: only super_admin can update any user
+      if (callerRole !== "super_admin") return errorResponse("Forbidden", 403);
+    } else {
+      // Override mode: only allow self-update
+      if (me.user.id !== id)
+        return errorResponse(
+          "Forbidden (override allows self-update only)",
+          403
+        );
+    }
+
+    const { data, error } = await updateAuthUserTable(id, fields);
+    if (error) return errorResponse(error.message, 400);
+    return successResponse(data);
+  } catch (err: any) {
+    return errorResponse(err.message || "Failed to update user", 400);
+  }
 };

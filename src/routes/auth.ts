@@ -5,8 +5,8 @@ import {
   userMe,
   sendRefreshTokenToFrontend,
   userLogout,
+  updateAuthUserController,
 } from "../controllers/auth";
-import { requireRole } from "../middleware/requireRole";
 
 const authRoutes = new Hono();
 
@@ -17,9 +17,6 @@ authRoutes.post("/signup", userSignUp);
 authRoutes.post("/signin", userSignIn);
 authRoutes.post("/logout", userLogout);
 
-// Example of role-protected endpoint (adjust or remove as needed)
-authRoutes.get("/admin-only-ping", requireRole(["super_admin"]), (c) =>
-  c.json({ pong: true })
-);
+authRoutes.put("/", updateAuthUserController);
 
 export default authRoutes;
