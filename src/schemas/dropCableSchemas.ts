@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const dropCableStatusEnum = z.enum([
-  "awaiting_client_installation_date",
+  "awaiting_client_confirmation_date",
   "survey_required",
   "survey_scheduled",
   "survey_completed",
@@ -11,6 +11,10 @@ export const dropCableStatusEnum = z.enum([
   "installation_scheduled",
   "installation_completed",
   "as_built_submitted",
+  "issue_logged",
+  "on_hold",
+  "awaiting_health_and_safety",
+  "planning_document_submitted",
 ]);
 
 export const countyEnum = z.enum(["tablebay", "falsebay"]).optional();
@@ -43,8 +47,8 @@ export const dropCableInsertSchema = z.object({
 
   // Timeline fields
   // Survey fields
-  survey_date: z.string().optional(),
-  survey_time: z.string().optional(), 
+  survey_scheduled_date: z.string().optional(),
+  survey_scheduled_time: z.string().optional(), 
   survey_completed_at: z.string().optional(),
   installation_scheduled_date: z.string().optional(),
   installation_scheduled_time: z.string().optional(),
