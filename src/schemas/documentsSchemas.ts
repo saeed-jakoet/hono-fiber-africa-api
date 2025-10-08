@@ -2,10 +2,21 @@ import { z } from "zod";
 
 export const documentCategoryEnum = z.enum(["as-built", "planning", "happy_letter"]);
 
+export const jobTypeEnum = z.enum([
+  "drop_cable",
+  "floating",
+  "civils",
+  "link_build",
+  "access_build",
+  "root_build",
+  "maintenance",
+  "relocations",
+]);
+
 export const uploadDocumentSchema = z.object({
   clientName: z.string().min(1),
   clientIdentifier: z.string().min(1),
-  jobType: z.string().min(1), // e.g., 'drop_cable'
+  jobType: jobTypeEnum, // e.g., 'drop_cable'
   category: documentCategoryEnum,
   // Prefer new field; keep old jobId for backward compatibility
   dropCableJobId: z.string().uuid().optional(),

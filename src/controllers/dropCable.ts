@@ -45,7 +45,23 @@ export const addDropCable = async (c: any) => {
     const parsed = dropCableInsertSchema.safeParse(body);
     if (!parsed.success) return errorResponse("Invalid input", 400);
     const db = getSupabaseForRequest(c);
-    const { data, error } = await createDropCable(db, parsed.data);
+    // Normalize notes to array of {text, timestamp}
+    const payload: any = { ...parsed.data };
+    const nowIso = new Date().toISOString();
+    if (payload.notes === undefined) {
+      // leave undefined to allow DB default or set to empty array if preferred
+    } else if (typeof payload.notes === "string") {
+      payload.notes = payload.notes.trim()
+        ? [{ text: payload.notes, timestamp: nowIso }]
+        : [];
+    } else if (Array.isArray(payload.notes)) {
+      // assume already normalized by client; ensure structure
+      payload.notes = payload.notes.map((n: any) => ({
+        text: String(n.text ?? ""),
+        timestamp: String(n.timestamp ?? nowIso),
+      }));
+    }
+    const { data, error } = await createDropCable(db, payload);
     if (error) return errorResponse(error.message, 400);
     return successResponse(data, "Drop cable job created");
   } catch (e: any) {
@@ -61,7 +77,20 @@ export const editDropCable = async (c: any) => {
     if (!parsed.success) return errorResponse("Invalid input", 400);
     const { id, ...payload } = parsed.data as any;
     const db = getSupabaseForRequest(c);
-    const { data, error } = await updateDropCable(db, id, payload);
+    // If notes is provided as a string, append to existing notes; if array, replace
+    let finalPayload: any = { ...payload };
+    if (typeof payload.notes === "string") {
+      const nowIso = new Date().toISOString();
+      // fetch existing to append
+      const { data: existing, error: fetchErr } = await getDropCableById(db, id);
+      if (fetchErr) return errorResponse(fetchErr.message, 400);
+      const existingNotes = Array.isArray(existing?.notes) ? existing.notes : [];
+      const toAppend = payload.notes.trim()
+        ? [{ text: payload.notes, timestamp: nowIso }]
+        : [];
+      finalPayload.notes = [...existingNotes, ...toAppend];
+    }
+    const { data, error } = await updateDropCable(db, id, finalPayload);
     if (error) return errorResponse(error.message, 400);
     return successResponse(data, "Drop cable job updated");
   } catch (e: any) {

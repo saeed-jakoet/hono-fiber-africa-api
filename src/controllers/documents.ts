@@ -35,7 +35,19 @@ function buildPath({
   const cn = sanitizeSegment(clientName);
   const ci = sanitizeSegment(clientIdentifier);
   const circ = circuitNumber ? sanitizeSegment(circuitNumber) : undefined;
-  const jt = sanitizeSegment(jobType); // remains for future-proofing, though we fix it to drop_cable in path
+  const jt = sanitizeSegment(jobType);
+  // Validate/normalize known job types to prevent arbitrary paths
+  const allowedJobTypes = new Set([
+    "drop_cable",
+    "floating",
+    "civils",
+    "link_build",
+    "access_build",
+    "root_build",
+    "maintenance",
+    "relocations",
+  ]);
+  const jobTypeSegment = allowedJobTypes.has(jt) ? jt : "unknown";
   // Determine filename purely by category
   const filenameByCategory: Record<string, string> = {
     "as-built": "asbuilt.pdf",
@@ -44,13 +56,13 @@ function buildPath({
   };
   const fileName = filenameByCategory[category] || "document.pdf";
 
-  // New required structure:
-  // {Client Name}/{Client Identifier}/drop_cable/{circuit_number}/{fileName}
+  // Structure:
+  // {Client Name}/{Client Identifier}/{jobType}/{circuit_number?}/{fileName}
   // If identifier effectively equals the name (e.g., spacing vs underscore), avoid duplication.
   const circuitSegment = circ ? `${circ}/` : "";
   const sameIdentity = !ci || normalizeForCompare(cn) === normalizeForCompare(ci);
   const basePath = sameIdentity ? `${cn}` : `${cn}/${ci}`;
-  return `${basePath}/drop_cable/${circuitSegment}${fileName}`;
+  return `${basePath}/${jobTypeSegment}/${circuitSegment}${fileName}`;
 }
 
 export const uploadDocument = async (c: any) => {

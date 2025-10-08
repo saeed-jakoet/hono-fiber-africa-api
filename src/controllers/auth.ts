@@ -2,7 +2,7 @@ import { authSignup, authSignIn } from "../queries/auth";
 import { successResponse, errorResponse } from "../utilities/responses";
 import { signUpSchema, signInSchema } from "../schemas/authSchemas";
 import { getCookie, setCookie } from "hono/cookie";
-import { database, getSupabaseForRequest } from "../utilities/supabase";
+import { database } from "../utilities/supabase";
 import { updateAuthUserTable } from "../queries/auth";
 
 export const userSignUp = async (c: any) => {

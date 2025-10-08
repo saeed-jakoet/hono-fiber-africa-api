@@ -62,7 +62,20 @@ export const dropCableInsertSchema = z.object({
 
   // Status
   status: dropCableStatusEnum.optional(),
-  notes: z.string().optional(),
+  // Notes can be a simple string (legacy) or an array of note objects with timestamp
+  notes: z
+    .union([
+      z.string(),
+      z
+        .array(
+          z.object({
+            text: z.string(),
+            timestamp: z.string(), // ISO string
+          })
+        )
+        .min(0)
+    ])
+    .optional(),
 });
 
 // Update schema with id in body

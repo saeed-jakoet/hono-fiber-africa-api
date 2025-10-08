@@ -22,12 +22,13 @@ app.use(
   })
 );
 
-// Removed manual CORS headers to allow hono/cors middleware to handle CORS properly for credentials
 
 app.use("*", async (c, next) => {
   console.log("Request:", c.req.url);
   await next();
 });
+
+app.get("/health", (c) => c.json({ status: "ok" }));
 
 app.use("*", async (c, next) => {
   const cookies = getCookie(c);
