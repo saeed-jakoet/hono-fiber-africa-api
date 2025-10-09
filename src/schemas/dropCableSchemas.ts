@@ -15,6 +15,9 @@ export const dropCableStatusEnum = z.enum([
   "on_hold",
   "awaiting_health_and_safety",
   "planning_document_submitted",
+  "awaiting_service_provider",
+  "adw_required",
+  "site_not_ready"
 ]);
 
 export const countyEnum = z.enum(["tablebay", "falsebay"]).optional();

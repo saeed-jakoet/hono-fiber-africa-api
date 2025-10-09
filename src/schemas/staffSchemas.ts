@@ -10,7 +10,6 @@ const dateStr = z
 export const createStaffWithAuthSchema = z.object({
   // Auth-required
   email: z.string().email(),
-  password: z.string().min(8),
   role: z.enum(["super_admin", "admin", "manager", "field_worker", "client"]).default("field_worker"),
 
   // Profile/HR
