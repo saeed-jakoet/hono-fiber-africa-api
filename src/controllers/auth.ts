@@ -1,9 +1,9 @@
-import { authSignup, authSignIn } from "../queries/auth";
+import { authSignup, authSignIn, listAuthAccounts, updateAuthUserTable } from "../queries/auth";
 import { successResponse, errorResponse } from "../utilities/responses";
 import { signUpSchema, signInSchema } from "../schemas/authSchemas";
 import { getCookie, setCookie } from "hono/cookie";
-import { database } from "../utilities/supabase";
-import { updateAuthUserTable } from "../queries/auth";
+import { database, getSupabaseForRequest, getAdminClient } from "../utilities/supabase";
+import { requireRole } from "../middleware/requireRole";
 
 export const userSignUp = async (c: any) => {
   try {
@@ -169,5 +169,44 @@ export const updateAuthUserController = async (c: any) => {
     return successResponse(data);
   } catch (err: any) {
     return errorResponse(err.message || "Failed to update user", 400);
+  }
+};
+
+// Removed users table endpoints; staff is the canonical profile now
+
+// Fetch a Supabase Auth account by id (admin)
+export const getAuthAccountById = async (c: any) => {
+  try {
+    const callerToken = getCookie(c, "accessToken");
+    if (!callerToken) return errorResponse("Not authenticated", 401);
+
+    // Ensure caller exists (optionally, rely on route-level requireRole)
+    const me = await database.auth.getUser(callerToken as string);
+    if (me.error || !me.data?.user) return errorResponse("Not authenticated", 401);
+
+    const id = c.req.param("id");
+    if (!id) return errorResponse("Missing id", 400);
+
+    const admin = getAdminClient();
+    const { data, error } = await admin.auth.admin.getUserById(id);
+    if (error || !data?.user) return errorResponse(error?.message || "User not found", 404);
+
+    const u = data.user;
+    return successResponse(
+      {
+        id: u.id,
+        email: u.email,
+        role: (u.user_metadata as any)?.role ?? null,
+        first_name: (u.user_metadata as any)?.firstName ?? null,
+        surname: (u.user_metadata as any)?.surname ?? null,
+        phone_number: (u.user_metadata as any)?.phone ?? null,
+        created_at: u.created_at,
+        last_sign_in_at: u.last_sign_in_at,
+        confirmed_at: u.confirmed_at,
+      },
+      "Auth account fetched"
+    );
+  } catch (e: any) {
+    return errorResponse(e.message || "Unexpected error", 500);
   }
 };
