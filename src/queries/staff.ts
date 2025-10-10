@@ -7,6 +7,9 @@ export const listStaff = async (db: SupabaseClient) => db.from(TABLE).select("*"
 export const getStaffById = async (db: SupabaseClient, id: string) =>
   db.from(TABLE).select("*").eq("id", id).single();
 
+export const getStaffByAuthUserId = async (db: SupabaseClient, authUserId: string) =>
+  db.from(TABLE).select("*").eq("auth_user_id", authUserId).single();
+
 export const createStaff = async (
   db: SupabaseClient,
   payload: Partial<Record<string, any>>,

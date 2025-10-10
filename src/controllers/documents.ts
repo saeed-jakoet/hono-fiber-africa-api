@@ -10,8 +10,8 @@ import { uploadDocumentSchema } from "../schemas/documentsSchemas";
 
 function sanitizeSegment(s: string) {
   return s
-    .replace(/[\\/]+/g, "-")
-    .replace(/\s+/g, " ")
+    .replace(/[\\/]+/g, "-") // prevent path traversal
+    .replace(/\s+/g, "_") // use underscores for spaces
     .trim();
 }
 
@@ -21,19 +21,18 @@ function normalizeForCompare(s: string) {
 
 function buildPath({
   clientName,
-  clientIdentifier,
   circuitNumber,
   jobType,
-  category,
+  fileBaseName,
+  originalFileName,
 }: {
   clientName: string;
-  clientIdentifier: string;
   circuitNumber?: string;
   jobType: string;
-  category: string;
+  fileBaseName: string; // e.g., 'planning' | 'as-built' | 'happy_letter'
+  originalFileName: string;
 }) {
   const cn = sanitizeSegment(clientName);
-  const ci = sanitizeSegment(clientIdentifier);
   const circ = circuitNumber ? sanitizeSegment(circuitNumber) : undefined;
   const jt = sanitizeSegment(jobType);
   // Validate/normalize known job types to prevent arbitrary paths
@@ -48,21 +47,18 @@ function buildPath({
     "relocations",
   ]);
   const jobTypeSegment = allowedJobTypes.has(jt) ? jt : "unknown";
-  // Determine filename purely by category
-  const filenameByCategory: Record<string, string> = {
-    "as-built": "asbuilt.pdf",
-    planning: "planning.pdf",
-    happy_letter: "happyletter.pdf",
-  };
-  const fileName = filenameByCategory[category] || "document.pdf";
 
-  // Structure:
-  // {Client Name}/{Client Identifier}/{jobType}/{circuit_number?}/{fileName}
-  // If identifier effectively equals the name (e.g., spacing vs underscore), avoid duplication.
+  // Derive stored filename from category with original extension
+  const rawName = originalFileName || "document.pdf";
+  const dotIdx = rawName.lastIndexOf(".");
+  const ext = dotIdx >= 0 ? rawName.slice(dotIdx) : ""; // includes dot, e.g. '.pdf'
+  const base = sanitizeSegment(fileBaseName || "document");
+  const safeFileName = `${base}${ext || ".pdf"}`;
+
+  // Structure: company_name/job_type/circuit_number/filename
   const circuitSegment = circ ? `${circ}/` : "";
-  const sameIdentity = !ci || normalizeForCompare(cn) === normalizeForCompare(ci);
-  const basePath = sameIdentity ? `${cn}` : `${cn}/${ci}`;
-  return `${basePath}/${jobTypeSegment}/${circuitSegment}${fileName}`;
+  const basePath = `${cn}`;
+  return `${basePath}/${jobTypeSegment}/${circuitSegment}${safeFileName}`;
 }
 
 export const uploadDocument = async (c: any) => {
@@ -94,7 +90,13 @@ export const uploadDocument = async (c: any) => {
     const parsed = uploadDocumentSchema.safeParse(fields);
     if (!parsed.success) return errorResponse("Invalid input", 400);
 
-    const folderPath = buildPath({ ...parsed.data });
+    const folderPath = buildPath({
+      clientName: parsed.data.clientName,
+      circuitNumber: parsed.data.circuitNumber,
+      jobType: parsed.data.jobType,
+      fileBaseName: parsed.data.category,
+      originalFileName: (file as File).name,
+    });
 
     const { error: uploadError } = await adminDb.storage
       .from("documents")

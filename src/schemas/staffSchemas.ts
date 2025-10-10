@@ -7,7 +7,10 @@ const dateStr = z
     "Date must be in YYYY-MM-DD format"
   );
 
-export const createStaffWithAuthSchema = z.object({
+// NOTE: Client must NOT send masked_national_id or encrypted_national_id.
+// Those are computed server-side from `national_id` when provided.
+export const createStaffWithAuthSchema = z
+  .object({
   // Auth-required
   email: z.string().email(),
   role: z.enum(["super_admin", "admin", "manager", "field_worker", "client"]).default("field_worker"),
@@ -28,9 +31,12 @@ export const createStaffWithAuthSchema = z.object({
   emergency_contact_phone: z.string().optional().nullable(),
   national_id: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
-});
+  })
+  .strict();
 
-export const updateStaffSchema = z.object({
+// Update schema only allows editable HR fields; disallow masked/encrypted inputs.
+export const updateStaffSchema = z
+  .object({
   phone_number: z.string().optional().nullable(),
   date_of_birth: dateStr.optional().nullable(),
   address: z.string().optional().nullable(),
@@ -43,13 +49,16 @@ export const updateStaffSchema = z.object({
   emergency_contact_phone: z.string().optional().nullable(),
   national_id: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
-});
+  })
+  .strict();
 
 export type CreateStaffWithAuthInput = z.infer<typeof createStaffWithAuthSchema>;
 export type UpdateStaffInput = z.infer<typeof updateStaffSchema>;
 
 // Create-staff-only schema (no auth fields)
-export const createStaffSchema = z.object({
+// Create-staff-only schema (no auth fields). Strict to prevent sensitive fields.
+export const createStaffSchema = z
+  .object({
   first_name: z.string().min(1),
   surname: z.string().min(1),
   email: z.string().email().optional().nullable(),
@@ -68,7 +77,8 @@ export const createStaffSchema = z.object({
   emergency_contact_phone: z.string().optional().nullable(),
   national_id: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
-});
+  })
+  .strict();
 
 // Grant access schema: may provide password and role overrides
 export const grantAccessSchema = z.object({

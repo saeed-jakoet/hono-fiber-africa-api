@@ -3,6 +3,7 @@ import { successResponse, errorResponse } from "../utilities/responses";
 import {
   listStaff,
   getStaffById,
+  getStaffByAuthUserId,
   updateStaff,
   createStaff,
 } from "../queries/staff";
@@ -13,6 +14,8 @@ import {
   grantAccessSchema,
 } from "../schemas/staffSchemas";
 import { z } from "zod";
+import { encryptNationalId, decryptNationalId, maskNationalId } from "../utilities/nationalIdCrypto";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Allowed document types and helpers for upload
 const documentTypeEnum = z.enum(["id", "medical", "employment_contract"]);
@@ -54,7 +57,12 @@ export const getStaffList = async (c: any) => {
     const db = getSupabaseForRequest(c);
     const { data, error } = await listStaff(db);
     if (error) return errorResponse(error.message, 400);
-    return successResponse(data ?? [], "Staff fetched");
+    // Ensure we never leak plaintext national_id; only masked is returned
+    const safe = (data || []).map((row: any) => {
+      const { national_id, encrypted_national_id, ...rest } = row || {};
+      return rest;
+    });
+    return successResponse(safe, "Staff fetched");
   } catch (e: any) {
     return errorResponse(e.message || "Unexpected error", 500);
   }
@@ -68,7 +76,24 @@ export const getStaffMember = async (c: any) => {
     const { data, error } = await getStaffById(db, id);
     if (error) return errorResponse(error.message, 400);
     if (!data) return errorResponse("Staff member not found", 404);
-    return successResponse(data, "Staff member fetched");
+    const { national_id, encrypted_national_id, ...rest } = data as any;
+    return successResponse(rest, "Staff member fetched");
+  } catch (e: any) {
+    return errorResponse(e.message || "Unexpected error", 500);
+  }
+};
+
+// Return the staff profile for the currently authenticated user
+export const getMyStaffProfile = async (c: any) => {
+  try {
+    const user = c.get ? c.get("user") : undefined;
+    if (!user?.id) return errorResponse("Not authenticated", 401);
+    const db = getSupabaseForRequest(c);
+    const { data, error } = await getStaffByAuthUserId(db, user.id);
+    if (error) return errorResponse(error.message, 400);
+    if (!data) return errorResponse("Staff profile not found", 404);
+    const { national_id, encrypted_national_id, ...rest } = data as any;
+    return successResponse(rest, "My staff profile fetched");
   } catch (e: any) {
     return errorResponse(e.message || "Unexpected error", 500);
   }
@@ -84,9 +109,22 @@ export const updateStaffController = async (c: any) => {
     const parsed = updateStaffSchema.safeParse(body);
     if (!parsed.success) return errorResponse("Invalid staff payload", 400);
     const db = getSupabaseForRequest(c);
-    const { data, error } = await updateStaff(db, id, parsed.data);
+    const payload: any = { ...parsed.data };
+    if (Object.prototype.hasOwnProperty.call(parsed.data, "national_id")) {
+      const raw = parsed.data.national_id || "";
+      if (raw && raw.trim() !== "") {
+        payload.encrypted_national_id = encryptNationalId(raw.trim());
+        payload.masked_national_id = maskNationalId(raw.trim());
+      } else {
+        payload.encrypted_national_id = null;
+        payload.masked_national_id = null;
+      }
+      delete payload.national_id;
+    }
+    const { data, error } = await updateStaff(db, id, payload);
     if (error) return errorResponse(error.message, 400);
-    return successResponse(data, "Staff updated");
+    const { national_id, encrypted_national_id, ...rest } = (data as any) || {};
+    return successResponse(rest, "Staff updated");
   } catch (e: any) {
     return errorResponse(e.message || "Unexpected error", 500);
   }
@@ -133,7 +171,6 @@ export const createStaffWithAuthController = async (c: any) => {
     if (!parsed.success) return errorResponse("Invalid staff payload", 400);
     const {
       email,
-      password,
       role = "field_worker",
       first_name,
       surname,
@@ -150,6 +187,7 @@ export const createStaffWithAuthController = async (c: any) => {
       national_id,
       notes,
     } = parsed.data;
+    const password: string | undefined = (body as any)?.password;
 
     const admin = getAdminClient();
 
@@ -177,7 +215,7 @@ export const createStaffWithAuthController = async (c: any) => {
 
     // 2) Insert into staff table
     const db = getSupabaseForRequest(c);
-    const staffPayload = {
+    const staffPayload: any = {
       first_name,
       surname,
       email,
@@ -191,9 +229,12 @@ export const createStaffWithAuthController = async (c: any) => {
       employment_type,
       emergency_contact_name,
       emergency_contact_phone,
-      national_id,
       notes,
     };
+    if (national_id && national_id.trim() !== "") {
+      staffPayload.encrypted_national_id = encryptNationalId(national_id.trim());
+      staffPayload.masked_national_id = maskNationalId(national_id.trim());
+    }
     const { data: staffRow, error: staffErr } = await createStaff(
       db,
       staffPayload,
@@ -220,8 +261,9 @@ export const createStaffWithAuthController = async (c: any) => {
       upload = up;
     }
 
+    const { national_id: ni, encrypted_national_id: eni, ...restStaff } = (staffRow as any) || {};
     return successResponse(
-      { id, auth: { id, email, role }, staff: staffRow, upload },
+      { id, auth: { id, email, role }, staff: restStaff, upload },
       "Staff created"
     );
   } catch (e: any) {
@@ -271,7 +313,13 @@ export const createStaffController = async (c: any) => {
     const id =
       (globalThis as any).crypto?.randomUUID?.() ||
       (await import("node:crypto")).randomUUID();
-    const { data, error } = await createStaff(db, parsed.data, id);
+    const payload: any = { ...parsed.data };
+    if (payload.national_id && payload.national_id.trim() !== "") {
+      payload.encrypted_national_id = encryptNationalId(payload.national_id.trim());
+      payload.masked_national_id = maskNationalId(payload.national_id.trim());
+    }
+    delete payload.national_id;
+    const { data, error } = await createStaff(db, payload, id);
     if (error) return errorResponse(error.message, 400);
     // Optional document upload
     let upload: any = undefined;
@@ -286,7 +334,8 @@ export const createStaffController = async (c: any) => {
       });
       upload = up;
     }
-    return successResponse({ ...data, upload }, "Staff created");
+    const { national_id, encrypted_national_id, ...rest } = (data as any) || {};
+    return successResponse({ ...rest, upload }, "Staff created");
   } catch (e: any) {
     return errorResponse(e.message || "Unexpected error", 500);
   }
@@ -467,6 +516,35 @@ export const revokeAccessController = async (c: any) => {
     });
     if (updErr) return errorResponse(updErr.message, 400);
     return successResponse({ staff: updated }, "Access revoked");
+  } catch (e: any) {
+    return errorResponse(e.message || "Unexpected error", 500);
+  }
+};
+
+// Reveal national id for a staff member (admin/super_admin only) and audit the access
+export const revealNationalIdController = async (c: any) => {
+  try {
+    const role = c.get ? c.get("role") : undefined;
+    if (role !== "super_admin" && role !== "admin") return errorResponse("Forbidden", 403);
+    const id = c.req.param("id");
+    if (!id) return errorResponse("Missing id", 400);
+
+    const db = getSupabaseForRequest(c);
+    const { data, error } = await getStaffById(db, id);
+    if (error) return errorResponse(error.message, 400);
+    if (!data) return errorResponse("Staff not found", 404);
+    const enc = (data as any).encrypted_national_id as string | null;
+    if (!enc) return errorResponse("No national id stored", 404);
+
+    // decrypt
+    let value: string;
+    try {
+      value = decryptNationalId(enc);
+    } catch (e: any) {
+      return errorResponse("Failed to decrypt national id", 500);
+    }
+
+    return successResponse({ national_id: value }, "National ID revealed");
   } catch (e: any) {
     return errorResponse(e.message || "Unexpected error", 500);
   }
