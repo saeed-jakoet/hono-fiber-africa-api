@@ -1,9 +1,8 @@
-import { authSignup, authSignIn, listAuthAccounts, updateAuthUserTable } from "../queries/auth";
+import { authSignup, authSignIn, updateAuthUserTable } from "../queries/auth";
 import { successResponse, errorResponse } from "../utilities/responses";
 import { signUpSchema, signInSchema } from "../schemas/authSchemas";
 import { getCookie, setCookie } from "hono/cookie";
-import { database, getSupabaseForRequest, getAdminClient } from "../utilities/supabase";
-import { requireRole } from "../middleware/requireRole";
+import { database, getAdminClient } from "../utilities/supabase";
 
 export const userSignUp = async (c: any) => {
   try {
@@ -172,8 +171,6 @@ export const updateAuthUserController = async (c: any) => {
   }
 };
 
-// Removed users table endpoints; staff is the canonical profile now
-
 // Fetch a Supabase Auth account by id (admin)
 export const getAuthAccountById = async (c: any) => {
   try {
@@ -182,14 +179,16 @@ export const getAuthAccountById = async (c: any) => {
 
     // Ensure caller exists (optionally, rely on route-level requireRole)
     const me = await database.auth.getUser(callerToken as string);
-    if (me.error || !me.data?.user) return errorResponse("Not authenticated", 401);
+    if (me.error || !me.data?.user)
+      return errorResponse("Not authenticated", 401);
 
     const id = c.req.param("id");
     if (!id) return errorResponse("Missing id", 400);
 
     const admin = getAdminClient();
     const { data, error } = await admin.auth.admin.getUserById(id);
-    if (error || !data?.user) return errorResponse(error?.message || "User not found", 404);
+    if (error || !data?.user)
+      return errorResponse(error?.message || "User not found", 404);
 
     const u = data.user;
     return successResponse(

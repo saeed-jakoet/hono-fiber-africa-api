@@ -22,6 +22,7 @@ export const dropCableStatusEnum = z.enum([
 
 export const countyEnum = z.enum(["tablebay", "falsebay"]).optional();
 
+//TODO: add week of year to schema 
 export const dropCableInsertSchema = z.object({
   // Client relationship
   client_id: z.string().uuid(),

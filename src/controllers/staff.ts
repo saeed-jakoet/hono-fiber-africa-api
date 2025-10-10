@@ -1,7 +1,17 @@
-import { getSupabaseForRequest, getAdminClient, database } from "../utilities/supabase";
+import { getSupabaseForRequest, getAdminClient } from "../utilities/supabase";
 import { successResponse, errorResponse } from "../utilities/responses";
-import { listStaff, getStaffById, updateStaff, createStaff } from "../queries/staff";
-import { createStaffWithAuthSchema, updateStaffSchema, createStaffSchema, grantAccessSchema } from "../schemas/staffSchemas";
+import {
+  listStaff,
+  getStaffById,
+  updateStaff,
+  createStaff,
+} from "../queries/staff";
+import {
+  createStaffWithAuthSchema,
+  updateStaffSchema,
+  createStaffSchema,
+  grantAccessSchema,
+} from "../schemas/staffSchemas";
 import { z } from "zod";
 
 // Allowed document types and helpers for upload
@@ -22,16 +32,19 @@ async function maybeUploadStaffDocument(opts: {
   if (!file || !documentType) return { uploaded: false } as const;
 
   const parsed = documentTypeEnum.safeParse(documentType);
-  if (!parsed.success) return { uploaded: false, error: "Invalid document_type" } as const;
+  if (!parsed.success)
+    return { uploaded: false, error: "Invalid document_type" } as const;
 
   const ext = getFileExtension((file as any)?.name || undefined);
   const objectPath = `${staffId}/${parsed.data}${ext}`;
   const contentType = (file as any)?.type || undefined;
   const arrayBuffer = await file.arrayBuffer();
-  const { data, error } = await admin.storage.from(bucket).upload(objectPath, arrayBuffer, {
-    contentType,
-    upsert: true,
-  });
+  const { data, error } = await admin.storage
+    .from(bucket)
+    .upload(objectPath, arrayBuffer, {
+      contentType,
+      upsert: true,
+    });
   if (error) return { uploaded: false, error: error.message } as const;
   return { uploaded: true, path: objectPath, key: data?.path } as const;
 }
@@ -111,7 +124,8 @@ export const createStaffWithAuthController = async (c: any) => {
         notes: form["notes"],
       };
       documentType = (form["document_type"] as string) || null;
-      documentFile = (form["document"] as File) || (form["file"] as File) || null;
+      documentFile =
+        (form["document"] as File) || (form["file"] as File) || null;
     } else {
       body = await c.req.json();
     }
@@ -140,13 +154,24 @@ export const createStaffWithAuthController = async (c: any) => {
     const admin = getAdminClient();
 
     // 1) Create auth user (service role) and set metadata
-    const { data: authRes, error: authErr } = await admin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { role, firstName: first_name, surname, phone: phone_number },
-    });
-    if (authErr || !authRes?.user?.id) return errorResponse(authErr?.message || "Failed to create auth user", 400);
+    const { data: authRes, error: authErr } = await admin.auth.admin.createUser(
+      {
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          role,
+          firstName: first_name,
+          surname,
+          phone: phone_number,
+        },
+      }
+    );
+    if (authErr || !authRes?.user?.id)
+      return errorResponse(
+        authErr?.message || "Failed to create auth user",
+        400
+      );
 
     const id = authRes.user.id;
 
@@ -169,10 +194,16 @@ export const createStaffWithAuthController = async (c: any) => {
       national_id,
       notes,
     };
-  const { data: staffRow, error: staffErr } = await createStaff(db, staffPayload, id);
+    const { data: staffRow, error: staffErr } = await createStaff(
+      db,
+      staffPayload,
+      id
+    );
     if (staffErr) {
       // rollback auth best-effort
-      try { await admin.auth.admin.deleteUser(id); } catch {}
+      try {
+        await admin.auth.admin.deleteUser(id);
+      } catch {}
       return errorResponse(staffErr.message, 400);
     }
 
@@ -189,7 +220,10 @@ export const createStaffWithAuthController = async (c: any) => {
       upload = up;
     }
 
-    return successResponse({ id, auth: { id, email, role }, staff: staffRow, upload }, "Staff created");
+    return successResponse(
+      { id, auth: { id, email, role }, staff: staffRow, upload },
+      "Staff created"
+    );
   } catch (e: any) {
     return errorResponse(e.message || "Unexpected error", 500);
   }
@@ -225,7 +259,8 @@ export const createStaffController = async (c: any) => {
         notes: form["notes"],
       };
       documentType = (form["document_type"] as string) || null;
-      documentFile = (form["document"] as File) || (form["file"] as File) || null;
+      documentFile =
+        (form["document"] as File) || (form["file"] as File) || null;
     } else {
       body = await c.req.json();
     }
@@ -233,7 +268,9 @@ export const createStaffController = async (c: any) => {
     if (!parsed.success) return errorResponse("Invalid staff payload", 400);
 
     const db = getSupabaseForRequest(c);
-    const id = (globalThis as any).crypto?.randomUUID?.() || (await import("node:crypto")).randomUUID();
+    const id =
+      (globalThis as any).crypto?.randomUUID?.() ||
+      (await import("node:crypto")).randomUUID();
     const { data, error } = await createStaff(db, parsed.data, id);
     if (error) return errorResponse(error.message, 400);
     // Optional document upload
@@ -340,37 +377,67 @@ export const grantAccessController = async (c: any) => {
     const { data: staffRow, error: staffErr } = await getStaffById(db, id);
     if (staffErr) return errorResponse(staffErr.message, 400);
     if (!staffRow) return errorResponse("Staff not found", 404);
-    if (staffRow.auth_user_id) return errorResponse("Access already granted", 400);
+    if (staffRow.auth_user_id)
+      return errorResponse("Access already granted", 400);
 
     const email = parsed.data.email || staffRow.email;
-    if (!email) return errorResponse("Email is required (set on staff or provide now)", 400);
-  const password = parsed.data.password;
+    if (!email)
+      return errorResponse(
+        "Email is required (set on staff or provide now)",
+        400
+      );
+    const password = parsed.data.password;
     const role = parsed.data.role || staffRow.role || "field_worker";
 
     const admin = getAdminClient();
     let authUserId: string | null = null;
     const cryptoMod = await import("node:crypto");
-    const tempPassword = password && password.length >= 8 ? password : cryptoMod.randomBytes(16).toString("hex");
-    const { data: authRes, error: authErr } = await admin.auth.admin.createUser({
-      email,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: {
-        role,
-        firstName: staffRow.first_name || null,
-        surname: staffRow.surname || null,
-        phone: staffRow.phone_number || null,
-      },
-    });
-    if (authErr || !authRes?.user?.id) return errorResponse(authErr?.message || "Failed to create auth user", 400);
+    const tempPassword =
+      password && password.length >= 8
+        ? password
+        : cryptoMod.randomBytes(16).toString("hex");
+    const { data: authRes, error: authErr } = await admin.auth.admin.createUser(
+      {
+        email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
+          role,
+          firstName: staffRow.first_name || null,
+          surname: staffRow.surname || null,
+          phone: staffRow.phone_number || null,
+        },
+      }
+    );
+    if (authErr || !authRes?.user?.id)
+      return errorResponse(
+        authErr?.message || "Failed to create auth user",
+        400
+      );
     authUserId = authRes.user.id;
-  const { data: updated, error: updErr } = await updateStaff(db, id, { auth_user_id: authUserId, role });
+    const { data: updated, error: updErr } = await updateStaff(db, id, {
+      auth_user_id: authUserId,
+      role,
+    });
     if (updErr) {
-      try { await admin.auth.admin.deleteUser(authUserId); } catch {}
+      try {
+        await admin.auth.admin.deleteUser(authUserId);
+      } catch {}
       return errorResponse(updErr.message, 400);
     }
-  const autoGenerated = !(password && password.length >= 8);
-  return successResponse({ staff: updated, auth: { id: authUserId, email, role, tempPassword: autoGenerated ? tempPassword : undefined } }, "Access granted");
+    const autoGenerated = !(password && password.length >= 8);
+    return successResponse(
+      {
+        staff: updated,
+        auth: {
+          id: authUserId,
+          email,
+          role,
+          tempPassword: autoGenerated ? tempPassword : undefined,
+        },
+      },
+      "Access granted"
+    );
   } catch (e: any) {
     return errorResponse(e.message || "Unexpected error", 500);
   }
@@ -387,14 +454,17 @@ export const revokeAccessController = async (c: any) => {
     const { data: staffRow, error } = await getStaffById(db, id);
     if (error) return errorResponse(error.message, 400);
     if (!staffRow) return errorResponse("Staff not found", 404);
-    if (!staffRow.auth_user_id) return errorResponse("No access to revoke", 400);
+    if (!staffRow.auth_user_id)
+      return errorResponse("No access to revoke", 400);
 
     const authId = staffRow.auth_user_id as string;
     const admin = getAdminClient();
     const { error: delErr } = await admin.auth.admin.deleteUser(authId);
     if (delErr) return errorResponse(delErr.message, 400);
 
-    const { data: updated, error: updErr } = await updateStaff(db, id, { auth_user_id: null });
+    const { data: updated, error: updErr } = await updateStaff(db, id, {
+      auth_user_id: null,
+    });
     if (updErr) return errorResponse(updErr.message, 400);
     return successResponse({ staff: updated }, "Access revoked");
   } catch (e: any) {
