@@ -1,5 +1,7 @@
 import { getSupabaseForRequest } from "../utilities/supabase";
 import { successResponse, errorResponse } from "../utilities/responses";
+import { Resend } from "resend";
+import { z } from "zod";
 import {
   dropCableInsertSchema,
   dropCableUpdateWithIdSchema,
@@ -11,6 +13,8 @@ import {
   updateDropCable,
   listDropCablesByClient,
 } from "../queries/dropCable";
+
+const resend = new Resend(process.env.RESEND_API_KEY!);
 
 export const getDropCables = async (c: any) => {
   try {
@@ -82,9 +86,14 @@ export const editDropCable = async (c: any) => {
     if (typeof payload.notes === "string") {
       const nowIso = new Date().toISOString();
       // fetch existing to append
-      const { data: existing, error: fetchErr } = await getDropCableById(db, id);
+      const { data: existing, error: fetchErr } = await getDropCableById(
+        db,
+        id
+      );
       if (fetchErr) return errorResponse(fetchErr.message, 400);
-      const existingNotes = Array.isArray(existing?.notes) ? existing.notes : [];
+      const existingNotes = Array.isArray(existing?.notes)
+        ? existing.notes
+        : [];
       const toAppend = payload.notes.trim()
         ? [{ text: payload.notes, timestamp: nowIso }]
         : [];
@@ -110,5 +119,32 @@ export const getDropCablesByClient = async (c: any) => {
   } catch (e: any) {
     console.error(e);
     return errorResponse(e.message || "Unexpected error", 500);
+  }
+};
+
+export const sendDropCableAccessRequest = async (c: any) => {
+  // Validate input (now expects html from frontend)
+  const body = await c.req.json();
+  const schema = z.object({
+    to: z.string().email(),
+    html: z.string().min(10),
+    subject: z.string().default("Drop Cable Access Request"),
+  });
+  const parse = schema.safeParse(body);
+  if (!parse.success) {
+    return c.json({ status: "error", message: "Invalid input" }, 400);
+  }
+  const { to, html, subject } = parse.data;
+
+  try {
+    const result = await resend.emails.send({
+      from: "admin@ikiesprayworx.co.za",
+      to,
+      subject,
+      html,
+    });
+    return c.json({ status: "success", message: "Email sent", result });
+  } catch (error: any) {
+    return c.json({ status: "error", message: error.message }, 500);
   }
 };

@@ -5,6 +5,7 @@ import {
   addDropCable,
   editDropCable,
   getDropCablesByClient,
+  sendDropCableAccessRequest,
 } from "../controllers/dropCable";
 import { requireRole } from "../middleware/requireRole";
 
@@ -16,5 +17,7 @@ dropCable.get("/client/:clientId", getDropCablesByClient);
 
 dropCable.post("/", addDropCable);
 dropCable.put("/", editDropCable);
+
+dropCable.post("email/drop-cable-access", sendDropCableAccessRequest);
 
 export default dropCable;
