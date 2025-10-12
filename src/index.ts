@@ -32,7 +32,7 @@ app.get("/health", (c) => c.json({ status: "ok" }));
 
 app.use("*", async (c, next) => {
   const cookies = getCookie(c);
-  console.log("Cookies:", cookies);
+  // console.log("Cookies:", cookies);
 
   const accessToken = cookies.accessToken;
   const refreshToken = cookies.refreshToken;
@@ -40,8 +40,8 @@ app.use("*", async (c, next) => {
   (c as any).accessToken = accessToken;
   (c as any).refreshToken = refreshToken;
 
-  console.log("Access Token From Index:", accessToken);
-  console.log("Refresh Token From Index:", refreshToken);
+  // console.log("Access Token From Index:", accessToken);
+  // console.log("Refresh Token From Index:", refreshToken);
 
   await next();
 });
