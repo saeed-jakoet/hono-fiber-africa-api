@@ -12,8 +12,8 @@ export const createStaffWithAuthSchema = z
     // Auth-required
     email: z.string().email(),
     role: z
-      .enum(["super_admin", "admin", "manager", "field_worker", "client"])
-      .default("field_worker"),
+      .enum(["super_admin", "admin", "manager", "technician"])
+      .default("technician"),
 
     // Profile/HR
     first_name: z.string().min(1),
@@ -70,7 +70,7 @@ export const createStaffSchema = z
     phone_number: z.string().optional().nullable(),
     // Optional default role for staff record; kept in staff for convenience
     role: z
-      .enum(["super_admin", "admin", "manager", "field_worker", "client"])
+      .enum(["super_admin", "admin", "manager", "technician"])
       .optional()
       .nullable(),
 
@@ -92,7 +92,5 @@ export const createStaffSchema = z
 export const grantAccessSchema = z.object({
   email: z.string().email().optional(),
   password: z.string().min(8).optional(),
-  role: z
-    .enum(["super_admin", "admin", "manager", "field_worker", "client"])
-    .optional(),
+  role: z.enum(["super_admin", "admin", "manager", "technician"]).optional(),
 });

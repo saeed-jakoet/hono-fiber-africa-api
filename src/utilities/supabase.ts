@@ -48,3 +48,15 @@ export function getAdminClient(): SupabaseClient {
     },
   });
 }
+
+// Create a client bound to a one-time access token (e.g., recovery token from email link)
+export function getClientWithAccessToken(token: string): SupabaseClient {
+  return createClient(supabaseUrl, supabaseKey, {
+    accessToken: async () => token,
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+}

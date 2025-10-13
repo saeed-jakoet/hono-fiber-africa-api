@@ -24,3 +24,13 @@ export const updateAuthUserSchema = z.object({
 });
 
 export type UpdateAuthUserInput = z.infer<typeof updateAuthUserSchema>;
+
+// Password reset schemas
+export const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  new_password: z.string().min(8),
+});

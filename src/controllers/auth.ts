@@ -3,6 +3,7 @@ import { successResponse, errorResponse } from "../utilities/responses";
 import { signUpSchema, signInSchema } from "../schemas/authSchemas";
 import { getCookie, setCookie } from "hono/cookie";
 import { database, getAdminClient } from "../utilities/supabase";
+import { forgotPasswordSchema, resetPasswordSchema } from "../schemas/authSchemas";
 
 export const userSignUp = async (c: any) => {
   try {
@@ -207,5 +208,57 @@ export const getAuthAccountById = async (c: any) => {
     );
   } catch (e: any) {
     return errorResponse(e.message || "Unexpected error", 500);
+  }
+};
+
+// --- Password Reset Flow ---
+export const requestPasswordReset = async (c: any) => {
+  try {
+    const body = await c.req.json();
+    const parse = forgotPasswordSchema.safeParse(body);
+    if (!parse.success) return errorResponse("Invalid email", 400);
+
+    const email = parse.data.email;
+    // Send Supabase reset email with a redirect back to frontend page
+  const redirectTo = `${process.env.FRONTEND_BASE_URL}/auth/reset-password`;
+    const { error } = await database.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
+    // To avoid user enumeration, always return success even if the user doesn't exist
+    if (error) {
+      console.warn("resetPasswordForEmail error:", error.message);
+      return successResponse({}, "If an account exists for that email, a reset link has been sent");
+    }
+    return successResponse({}, "If an account exists for that email, a reset link has been sent");
+  } catch (e: any) {
+    return errorResponse(e.message || "Failed to request password reset", 400);
+  }
+};
+
+export const applyPasswordReset = async (c: any) => {
+  try {
+    const body = await c.req.json();
+    const parse = resetPasswordSchema.safeParse(body);
+    if (!parse.success) return errorResponse("Invalid payload", 400);
+    const { token, new_password } = parse.data;
+
+    // Validate the recovery token by fetching the user it belongs to
+    const {
+      data: { user },
+      error: tokenErr,
+    } = await database.auth.getUser(token);
+    if (tokenErr || !user) {
+      return errorResponse("Invalid or expired token", 400);
+    }
+
+    // Update the user's password using the admin client
+    const admin = getAdminClient();
+    const { error: updErr } = await admin.auth.admin.updateUserById(user.id, {
+      password: new_password,
+    });
+    if (updErr) return errorResponse(updErr.message, 400);
+    return successResponse({}, "Password updated successfully");
+  } catch (e: any) {
+    return errorResponse(e.message || "Failed to reset password", 400);
   }
 };

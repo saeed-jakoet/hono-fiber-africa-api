@@ -8,6 +8,8 @@ import {
   userLogout,
   updateAuthUserController,
   getAuthAccountById,
+  requestPasswordReset,
+  applyPasswordReset,
 } from "../controllers/auth";
 
 const authRoutes = new Hono();
@@ -18,6 +20,10 @@ authRoutes.get("/refresh-token", sendRefreshTokenToFrontend);
 authRoutes.post("/signup", userSignUp);
 authRoutes.post("/signin", userSignIn);
 authRoutes.post("/logout", userLogout);
+
+// Password reset
+authRoutes.post("/forgot-password", requestPasswordReset);
+authRoutes.post("/reset-password", applyPasswordReset);
 
 authRoutes.put("/", updateAuthUserController);
 
