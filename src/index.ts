@@ -11,6 +11,7 @@ import dropCableRoutes from "./routes/dropCable";
 import logRoutes from "./routes/logs";
 import documentsRoutes from "./routes/documents";
 import staffRoutes from "./routes/staff";
+import fleetRoutes from "./routes/fleet";
 
 const app = new Hono();
 
@@ -54,6 +55,7 @@ app.route("/drop-cable", dropCableRoutes);
 app.route("/log", logRoutes);
 app.route("/documents", documentsRoutes);
 app.route("/staff", staffRoutes);
+app.route("/fleet", fleetRoutes);
 
 const PORT = process.env.PORT;
 
