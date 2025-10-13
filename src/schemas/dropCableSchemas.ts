@@ -64,7 +64,7 @@ export const dropCableInsertSchema = z.object({
   order_received_at: z.string().optional(),
   installation_date_requested_at: z.string().optional(),
   survey_scheduled_for: z.string().optional(),
-  week: z.string().optional,
+  week: z.string().optional(),
 
   // Assignment
   technician_name: z.string().optional(),

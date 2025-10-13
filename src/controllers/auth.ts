@@ -62,7 +62,7 @@ export const userSignIn = async (c: any) => {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: 2 * 60 * 60, // seconds
+        maxAge: 60 * 60 * 24 * 7,
         path: "/",
       });
     }

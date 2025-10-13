@@ -18,7 +18,9 @@ refreshRouter.post("/refresh-token", async (c) => {
   if (!refresh_token) return errorResponse("Unauthorized", 401);
 
   try {
-    const { data, error } = await database.auth.refreshSession({ refresh_token });
+    const { data, error } = await database.auth.refreshSession({
+      refresh_token,
+    });
     if (error) {
       const msg = (error.message || "").toLowerCase();
       const isAlreadyUsedOrInvalid =
@@ -51,13 +53,18 @@ refreshRouter.post("/refresh-token", async (c) => {
       });
     }
     if (data.session?.refresh_token) {
-      setCookie(c, "refreshToken", encodeURIComponent(data.session.refresh_token), {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 2 * 60 * 60,
-        path: "/",
-      });
+      setCookie(
+        c,
+        "refreshToken",
+        encodeURIComponent(data.session.refresh_token),
+        {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          maxAge: 60 * 60 * 24 * 7,
+          path: "/",
+        }
+      );
     }
 
     return successResponse({
