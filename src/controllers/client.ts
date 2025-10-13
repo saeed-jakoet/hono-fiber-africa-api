@@ -54,7 +54,10 @@ export const editClient = async (c: any) => {
     if (!id) return errorResponse("Missing id", 400);
     const body = await c.req.json();
     const parsed = clientUpdateSchema.safeParse(body);
-    if (!parsed.success) return errorResponse("Invalid input", 400);
+    if (!parsed.success) {
+      console.error("Validation errors:", parsed.error.issues);
+      return errorResponse("Invalid input", 400);
+    }
     const db = getSupabaseForRequest(c);
     const { data, error } = await updateClient(db, id, parsed.data);
     if (error) return errorResponse(error.message, 400);

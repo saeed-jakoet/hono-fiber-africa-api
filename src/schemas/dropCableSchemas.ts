@@ -17,12 +17,12 @@ export const dropCableStatusEnum = z.enum([
   "planning_document_submitted",
   "awaiting_service_provider",
   "adw_required",
-  "site_not_ready"
+  "site_not_ready",
 ]);
 
 export const countyEnum = z.enum(["tablebay", "falsebay"]).optional();
 
-//TODO: add week of year to schema 
+//TODO: add week of year to schema
 export const dropCableInsertSchema = z.object({
   // Client relationship
   client_id: z.string().uuid(),
@@ -52,7 +52,7 @@ export const dropCableInsertSchema = z.object({
   // Timeline fields
   // Survey fields
   survey_scheduled_date: z.string().optional(),
-  survey_scheduled_time: z.string().optional(), 
+  survey_scheduled_time: z.string().optional(),
   survey_completed_at: z.string().optional(),
   installation_scheduled_date: z.string().optional(),
   installation_scheduled_time: z.string().optional(),
@@ -64,6 +64,7 @@ export const dropCableInsertSchema = z.object({
   order_received_at: z.string().optional(),
   installation_date_requested_at: z.string().optional(),
   survey_scheduled_for: z.string().optional(),
+  week: z.string().optional,
 
   // Assignment
   technician_name: z.string().optional(),
@@ -81,7 +82,7 @@ export const dropCableInsertSchema = z.object({
             timestamp: z.string(), // ISO string
           })
         )
-        .min(0)
+        .min(0),
     ])
     .optional(),
 });
