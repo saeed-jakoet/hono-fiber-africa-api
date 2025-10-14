@@ -10,6 +10,8 @@ import {
   createInventory,
   updateInventory,
 } from "../queries/inventory";
+import { applyInventoryUsage } from "../queries/inventoryUsage";
+import { inventoryUsageSchema } from "../schemas/inventoryUsageSchema";
 
 export const getInventory = async (c: any) => {
   try {
@@ -64,6 +66,21 @@ export const editInventory = async (c: any) => {
     const { data, error } = await updateInventory(db, id, parsed.data);
     if (error) return errorResponse(error.message, 400);
     return successResponse(data, "Inventory item updated");
+  } catch (e: any) {
+    console.error(e);
+    return errorResponse(e.message || "Unexpected error", 500);
+  }
+};
+
+export const applyUsage = async (c: any) => {
+  try {
+    const body = await c.req.json();
+    const parsed = inventoryUsageSchema.safeParse(body);
+    if (!parsed.success) return errorResponse("Invalid input", 400);
+    const db = getSupabaseForRequest(c);
+    const { data, error } = await applyInventoryUsage(db, parsed.data);
+    if (error) return errorResponse(error.message, 400);
+    return successResponse(data, "Inventory usage applied");
   } catch (e: any) {
     console.error(e);
     return errorResponse(e.message || "Unexpected error", 500);
