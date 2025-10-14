@@ -12,6 +12,7 @@ import {
   createDropCable,
   updateDropCable,
   listDropCablesByClient,
+  listDropCablesByTechnician,
 } from "../queries/dropCable";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
@@ -116,6 +117,20 @@ export const getDropCablesByClient = async (c: any) => {
     const { data, error } = await listDropCablesByClient(db, clientId);
     if (error) return errorResponse(error.message, 400);
     return successResponse(data ?? [], "Drop cables for client fetched");
+  } catch (e: any) {
+    console.error(e);
+    return errorResponse(e.message || "Unexpected error", 500);
+  }
+};
+
+export const getDropCablesByTechnician = async (c: any) => {
+  try {
+    const technicianId = c.req.param("technicianId");
+    if (!technicianId) return errorResponse("Missing technicianId", 400);
+    const db = getSupabaseForRequest(c);
+    const { data, error } = await listDropCablesByTechnician(db, technicianId);
+    if (error) return errorResponse(error.message, 400);
+    return successResponse(data ?? [], "Drop cables for technician fetched");
   } catch (e: any) {
     console.error(e);
     return errorResponse(e.message || "Unexpected error", 500);

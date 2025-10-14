@@ -74,6 +74,17 @@ export const updateAuthUserTable = async (
   );
   if (authError) return { data: null, error: authError };
 
-  // Only update Supabase Auth; no custom users table to update
+  // If role is being updated, also update the staff table
+  if (role) {
+    const { error: staffError } = await database
+      .from("staff")
+      .update({ role })
+      .eq("auth_user_id", id);
+
+    if (staffError) {
+      console.error("Failed to update staff role:", staffError);
+    }
+  }
+
   return { data: { id }, error: null as any };
 };

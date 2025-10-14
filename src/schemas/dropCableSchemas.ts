@@ -50,7 +50,6 @@ export const dropCableInsertSchema = z.object({
   dpc_distance_meters: z.number().nonnegative().optional(),
 
   // Timeline fields
-  // Survey fields
   survey_scheduled_date: z.string().optional(),
   survey_scheduled_time: z.string().optional(),
   survey_completed_at: z.string().optional(),
@@ -68,6 +67,7 @@ export const dropCableInsertSchema = z.object({
 
   // Assignment
   technician_name: z.string().optional(),
+  technician_id: z.string().optional(),
 
   // Status
   status: dropCableStatusEnum.optional(),

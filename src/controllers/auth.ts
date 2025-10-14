@@ -2,6 +2,7 @@ import { authSignup, authSignIn, updateAuthUserTable } from "../queries/auth";
 import { successResponse, errorResponse } from "../utilities/responses";
 import { signUpSchema, signInSchema } from "../schemas/authSchemas";
 import { getCookie, setCookie } from "hono/cookie";
+import { ensureCsrfCookie, CSRF_COOKIE } from "../middleware/csrf";
 import { database, getAdminClient } from "../utilities/supabase";
 import { forgotPasswordSchema, resetPasswordSchema, changePasswordSchema } from "../schemas/authSchemas";
 
@@ -68,6 +69,9 @@ export const userSignIn = async (c: any) => {
       });
     }
 
+    // Ensure CSRF token cookie exists for subsequent mutating requests
+    ensureCsrfCookie(c);
+
     return successResponse({ id: data?.user?.id });
   } catch (e: any) {
     console.error(e);
@@ -97,6 +101,8 @@ export const userMe = async (c: any) => {
         id: user.id,
         email: user.email,
         role: user.user_metadata?.role || null,
+        first_name: user.user_metadata?.firstName || null,
+        surname: user.user_metadata?.surname || null,
         user_metadata: user.user_metadata || {},
       },
       "User fetched"
@@ -127,6 +133,14 @@ export const userLogout = async (c: any) => {
   });
   setCookie(c, "refreshToken", "", {
     httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+  // Clear CSRF cookie
+  setCookie(c, CSRF_COOKIE, "", {
+    httpOnly: false,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",

@@ -12,6 +12,7 @@ import logRoutes from "./routes/logs";
 import documentsRoutes from "./routes/documents";
 import staffRoutes from "./routes/staff";
 import fleetRoutes from "./routes/fleet";
+import { csrfProtection } from "./middleware/csrf";
 
 const app = new Hono();
 
@@ -30,6 +31,9 @@ app.use("*", async (c, next) => {
 });
 
 app.get("/health", (c) => c.json({ status: "ok" }));
+
+// CSRF protection (after CORS & logging, before routes)
+app.use("*", csrfProtection());
 
 app.use("*", async (c, next) => {
   const cookies = getCookie(c);

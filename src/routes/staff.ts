@@ -6,7 +6,7 @@ const staffRoutes = new Hono();
 
 // 1. List and get staff
 staffRoutes.get("/", requireRole(["super_admin", "admin"]), getStaffList);
-staffRoutes.get("/me", requireRole(["super_admin", "admin", "manager", "field_worker", "client"]), getMyStaffProfile);
+staffRoutes.get("/me", requireRole(["super_admin", "admin", "manager", "technician"]), getMyStaffProfile);
 staffRoutes.get("/:id", requireRole(["super_admin", "admin"]), getStaffMember);
 
 // 2. Create staff

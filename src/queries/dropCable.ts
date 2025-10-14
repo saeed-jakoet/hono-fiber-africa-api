@@ -29,3 +29,13 @@ export const listDropCablesByClient = async (
     .select("*, clients(company_name)")
     .eq("client_id", clientId)
     .order("created_at", { ascending: false });
+
+export const listDropCablesByTechnician = async (
+  db: SupabaseClient,
+  technicianId: string
+) =>
+  db
+    .from(TABLE)
+    .select("*, clients(company_name)")
+    .eq("technician_id", technicianId)
+    .order("created_at", { ascending: false });
