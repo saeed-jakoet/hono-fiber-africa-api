@@ -3,7 +3,7 @@ import { successResponse, errorResponse } from "../utilities/responses";
 import { signUpSchema, signInSchema } from "../schemas/authSchemas";
 import { getCookie, setCookie } from "hono/cookie";
 import { database, getAdminClient } from "../utilities/supabase";
-import { forgotPasswordSchema, resetPasswordSchema } from "../schemas/authSchemas";
+import { forgotPasswordSchema, resetPasswordSchema, changePasswordSchema } from "../schemas/authSchemas";
 
 export const userSignUp = async (c: any) => {
   try {
@@ -260,5 +260,44 @@ export const applyPasswordReset = async (c: any) => {
     return successResponse({}, "Password updated successfully");
   } catch (e: any) {
     return errorResponse(e.message || "Failed to reset password", 400);
+  }
+};
+
+// Change password for the currently authenticated user
+export const changeMyPassword = async (c: any) => {
+  try {
+    const body = await c.req.json();
+    const parse = changePasswordSchema.safeParse(body);
+    if (!parse.success) return errorResponse("Invalid payload", 400);
+
+    // Identify current user from access token cookie
+    const token = getCookie(c, "accessToken");
+    if (!token) return errorResponse("Not authenticated", 401);
+    const { data: me, error: meErr } = await database.auth.getUser(token as string);
+    if (meErr || !me?.user) return errorResponse("Not authenticated", 401);
+
+    const user = me.user;
+    const { current_password, new_password } = parse.data;
+
+    // Verify current password by attempting sign-in with email + current password
+    if (!user.email) return errorResponse("Email not found for user", 400);
+    const { error: signInErr } = await database.auth.signInWithPassword({
+      email: user.email,
+      password: current_password,
+    });
+    if (signInErr) {
+      return errorResponse("Current password is incorrect", 400);
+    }
+
+    // Update password using admin client
+    const admin = getAdminClient();
+    const { error: updErr } = await admin.auth.admin.updateUserById(user.id, {
+      password: new_password,
+    });
+    if (updErr) return errorResponse(updErr.message, 400);
+
+    return successResponse({}, "Password updated successfully");
+  } catch (e: any) {
+    return errorResponse(e.message || "Failed to change password", 400);
   }
 };

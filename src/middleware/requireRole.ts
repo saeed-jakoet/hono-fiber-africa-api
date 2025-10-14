@@ -2,7 +2,7 @@ import { getCookie } from "hono/cookie";
 import { database } from "../utilities/supabase";
 import { errorResponse } from "../utilities/responses";
 
-export type Role = "super_admin" | "admin" | "manager" | "field_worker" | "client";
+export type Role = "super_admin" | "admin" | "manager" | "technician";
 
 export const requireRole = (allowed: Role[]) => {
   return async (c: any, next: any) => {

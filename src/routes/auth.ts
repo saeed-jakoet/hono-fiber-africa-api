@@ -10,6 +10,7 @@ import {
   getAuthAccountById,
   requestPasswordReset,
   applyPasswordReset,
+  changeMyPassword,
 } from "../controllers/auth";
 
 const authRoutes = new Hono();
@@ -24,6 +25,7 @@ authRoutes.post("/logout", userLogout);
 // Password reset
 authRoutes.post("/forgot-password", requestPasswordReset);
 authRoutes.post("/reset-password", applyPasswordReset);
+authRoutes.post("/change-password", requireRole(["super_admin", "admin", "manager", "technician"]), changeMyPassword);
 
 authRoutes.put("/", updateAuthUserController);
 
