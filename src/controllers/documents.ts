@@ -7,6 +7,7 @@ import {
   deleteDocumentById,
 } from "../queries/documents";
 import { uploadDocumentSchema } from "../schemas/documentsSchemas";
+import { log } from "node:console";
 
 function sanitizeSegment(s: string) {
   return s
@@ -126,6 +127,7 @@ export const uploadDocument = async (c: any) => {
       circuit_number: parsed.data.circuitNumber ?? null,
       uploaded_by: uploadedBy,
     });
+    console.log(error)
     if (error) return errorResponse(error.message, 400);
 
     return successResponse(data, "Document uploaded and linked");
@@ -190,6 +192,28 @@ export const deleteDocument = async (c: any) => {
     if (rowErr) return errorResponse(rowErr.message, 400);
 
     return successResponse(data, "Document deleted");
+  } catch (e: any) {
+    console.error(e);
+    return errorResponse(e.message || "Unexpected error", 500);
+  }
+};
+
+// Return a signed URL for the happy letter template stored in the 'documents' bucket
+// at path 'templates/happy-letter.pdf'. Optional query param: ?expires=3600
+export const getHappyLetterTemplate = async (c: any) => {
+  try {
+    const expiresIn = Number(c.req.query("expires")) || 3600;
+    const adminDb = getAdminClient();
+    const templatePath = "templates/happy-letter.pdf";
+
+    const { data: signed, error } = await adminDb.storage
+      .from("documents")
+      .createSignedUrl(templatePath, expiresIn);
+
+    if (error) return errorResponse(error.message, 400);
+    if (!signed?.signedUrl) return errorResponse("Failed to create signed URL", 400);
+
+    return successResponse({ url: signed.signedUrl, path: templatePath }, "Happy letter template URL");
   } catch (e: any) {
     console.error(e);
     return errorResponse(e.message || "Unexpected error", 500);

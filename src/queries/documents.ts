@@ -13,16 +13,23 @@ export type DocumentRow = {
   created_at?: string;
 };
 
-export async function insertDocument(db: SupabaseClient, payload: Omit<DocumentRow, "id" | "created_at">) {
+export async function insertDocument(
+  db: SupabaseClient,
+  payload: Omit<DocumentRow, "id" | "created_at">
+) {
   const { data, error } = await db
     .from("documents")
-    .insert(payload)
+    .upsert(payload, { onConflict: "file_path" })
     .select("*")
     .single();
   return { data, error } as { data: DocumentRow | null; error: any };
 }
 
-export async function listDocumentsByJob(db: SupabaseClient, jobType: string, jobId: string) {
+export async function listDocumentsByJob(
+  db: SupabaseClient,
+  jobType: string,
+  jobId: string
+) {
   // For drop_cable jobs, filter on drop_cable_job_id
   const query = db.from("documents").select("*").eq("job_type", jobType);
   if (jobType === "drop_cable") {
