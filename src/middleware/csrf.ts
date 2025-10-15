@@ -35,7 +35,13 @@ export const csrfProtection = () => {
     const isMutation = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
     // Skip protection for pure auth token establishment routes where browser may not yet have cookie
     const path = new URL(c.req.url).pathname;
-    const skipPaths = ["/auth/signin", "/auth/signup", "/refresh/refresh-token"]; // refresh is controlled separately
+    const skipPaths = [
+      "/auth/signin",
+      "/auth/signup",
+      "/auth/forgot-password",
+      "/auth/reset-password",
+      "/refresh/refresh-token",
+    ]; // refresh is controlled separately
 
     if (isMutation && !skipPaths.includes(path)) {
       const cookieToken = getCookie(c, CSRF_COOKIE);
