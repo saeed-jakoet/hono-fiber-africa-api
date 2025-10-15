@@ -67,6 +67,8 @@ Bun.serve({
   fetch: app.fetch,
   port: PORT,
   hostname: "0.0.0.0",
+  // Prevent premature request timeouts (default is ~10s). Value is in SECONDS and must be <= 255.
+  idleTimeout: 60, // 60 seconds
 });
 
 console.log(
