@@ -77,6 +77,14 @@ export const dropCableInsertSchema = z.object({
   splitter_install: z.boolean().optional(),
   mousepad_install: z.boolean().optional(),
 
+  // Installation completion override (percentage of install to be paid: 0-100)
+  install_completion_percent: z
+    .number()
+    .min(0)
+    .max(100)
+    .nullable()
+    .optional(),
+
   // Additional cost
   additonal_cost: z.number().nonnegative().optional(),
   additonal_cost_reason: z.string().optional(),

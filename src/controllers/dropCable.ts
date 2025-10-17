@@ -104,7 +104,8 @@ export const editDropCable = async (c: any) => {
       "splitter_install",
       "mousepad_install",
     ];
-    for (const k of serviceKeys) if (k in body) (finalPayload as any)[k] = !!(body as any)[k];
+    for (const k of serviceKeys)
+      if (k in body) (finalPayload as any)[k] = !!(body as any)[k];
     if (typeof payload.notes === "string") {
       const nowIso = new Date().toISOString();
       // fetch existing to append
@@ -190,118 +191,92 @@ export const getWeeklyTotals = async (c: any) => {
   try {
     const db = getSupabaseForRequest(c);
     const body = await c.req.json();
-    const schema = z.object({
-      client_id: z.string().uuid(),
-      order_type: z.string().min(1), // e.g., "drop_cable"
-      week: z.string().min(1),
-    });
-    const parsed = schema.safeParse(body);
+
+    // Input validation
+    const parsed = z
+      .object({
+        client_id: z.string().uuid(),
+        order_type: z.string(),
+        week: z.string(),
+      })
+      .safeParse(body);
     if (!parsed.success) return errorResponse("Invalid input", 400);
     const { client_id, order_type, week } = parsed.data;
-    const normalizedOrderType = String(order_type || "")
-      .toLowerCase()
-      .replace(/-/g, "_");
 
-    // Fetch all orders for this client/week depending on order_type
-    // Currently only supports drop_cable
-    if (normalizedOrderType !== "drop_cable") {
+    // Only drop_cable supported
+    const orderType = String(order_type).toLowerCase().replace(/-/g, "_");
+    if (orderType !== "drop_cable")
       return errorResponse("Unsupported order_type", 400);
-    }
 
-    const weekStr = String(week);
+    // Fetch orders for week
     const { data: orders, error: ordersErr } = await db
       .from("drop_cable")
       .select(
-        "id, week, circuit_number, site_b_name, county, pm, dpc_distance_meters, survey_planning, callout, installation, spon_budi_opti, splitter_install, mousepad_install, additonal_cost, additonal_cost_reason"
+        "id, circuit_number, site_b_name, county, pm, dpc_distance_meters, survey_planning, callout, installation, spon_budi_opti, splitter_install, mousepad_install, additonal_cost, install_completion_percent"
       )
       .eq("client_id", client_id)
-      .eq("week", weekStr);
+      .eq("week", String(week));
     if (ordersErr) return errorResponse(ordersErr.message, 400);
 
-    // Determine if any service flags are true across fetched orders
-    const anyServiceSelected = (orders ?? []).some((o: any) =>
-      Boolean(
-        o?.survey_planning ||
-          o?.callout ||
-          o?.installation ||
-          o?.spon_budi_opti ||
-          o?.splitter_install ||
-          o?.mousepad_install
-      )
-    );
+    // Fetch service costs
+    const { data: costs, error: costErr } =
+      await getServiceCostByClientAndOrderType(db, client_id, orderType);
+    if (costErr) return errorResponse(costErr.message, 400);
+    const price = costs || {};
 
-    // Only fetch costs if needed (at least one service is selected)
-    let costs: any = null;
-    if (anyServiceSelected) {
-      const { data: costsRow, error: costErr } = await getServiceCostByClientAndOrderType(
-        db,
-        client_id,
-        normalizedOrderType
-      );
-      if (costErr) return errorResponse(costErr.message, 400);
-      costs = costsRow;
-    }
+    // Helper to include cost only when flag is true
+    const take = (flag: any, val: any) => (flag ? Number(val || 0) : 0);
 
-    const items = (orders ?? []).map((o: any) => {
-      const perMeterRate = 19.98;
-      const discountFactor = 0.85; // 15% discount
+    const items = (orders || []).map((o: any) => {
+      const pct = Number(o.install_completion_percent);
+      const hasPct = Number.isFinite(pct) && pct >= 0 && pct <= 100;
 
-      const distance = Number(o.dpc_distance_meters ?? 0);
-      const costsSafe = costs || {};
-
-      // Service components
-      const compSurvey = o.survey_planning
-        ? Number(costsSafe.survey_planning_cost ?? 0)
-        : 0;
-      const compCallout = o.callout ? Number(costsSafe.callout_cost ?? 0) : 0;
-      const compSpon = o.spon_budi_opti
-        ? Number(costsSafe.spon_budi_opti_cost ?? 0)
-        : 0;
-      const compSplitter = o.splitter_install
-        ? Number(costsSafe.splitter_install_cost ?? 0)
-        : 0;
-      const compMouse = o.mousepad_install
-        ? Number(costsSafe.mousepad_install_cost ?? 0)
-        : 0;
-
-      // Installation total
-      let installFinal = 0;
+      // Installation cost: distance-based base then 15% discount, optional percent reduction
+      let install = 0;
       if (o.installation) {
-        const baseUnderOrEqual100 = Number(costsSafe.installation_cost ?? 0);
-        const preDiscount =
-          distance <= 100 ? baseUnderOrEqual100 : perMeterRate * distance;
-        installFinal = round2(preDiscount * discountFactor);
+        const distance = Number(o.dpc_distance_meters || 0);
+        const flat = Number(price.installation_cost || 0); // e.g., 1997.5
+        const perMeter = 19.98;
+        const base = distance < 101 ? flat : distance * perMeter;
+        const discounted = base * 0.85; // apply 15% discount
+        // If percent provided, subtract that percent from discounted base (e.g., 50% => pay 50% less)
+        install =
+          hasPct && pct > 0
+            ? round2(discounted * (pct / 100))
+            : round2(discounted);
       }
 
-      const additional = Number(o.additonal_cost ?? 0);
-      const subtotal =
-        compSurvey +
-        compCallout +
-        compSpon +
-        compSplitter +
-        compMouse +
-        installFinal +
-        additional;
+      const survey = take(o.survey_planning, price.survey_planning_cost);
+      const callout = take(o.callout, price.callout_cost);
+      const spon = take(o.spon_budi_opti, price.spon_budi_opti_cost);
+      const splitter = take(o.splitter_install, price.splitter_install_cost);
+      const mousepad = take(o.mousepad_install, price.mousepad_install_cost);
+      const additional = Number(o.additonal_cost || 0);
+
+      const total = round2(
+        survey + callout + spon + splitter + mousepad + install + additional
+      );
+
       return {
         id: o.id,
         circuit_number: o.circuit_number,
         site_b_name: o.site_b_name,
         county: o.county,
         pm: o.pm,
-        distance: distance,
-        survey_planning_cost: compSurvey,
-        callout_cost: compCallout,
-        installation_cost: installFinal,
-        spon_budi_opti_cost: compSpon,
-        splitter_cost: compSplitter,
-        mousepad_cost: compMouse,
+        distance: Number(o.dpc_distance_meters || 0),
+        survey_planning_cost: survey,
+        callout_cost: callout,
+        installation_cost: install,
+        spon_budi_opti_cost: spon,
+        splitter_cost: splitter,
+        mousepad_cost: mousepad,
         additional_cost: additional,
-        total: round2(subtotal),
+        total,
       };
     });
 
     const total = round2(
-      items.reduce((sum: number, it: any) => sum + it.total, 0)
+      (items || []).reduce((sum: number, it: any) => sum + it.total, 0)
     );
     return successResponse({ total, items }, "Weekly totals calculated");
   } catch (e: any) {
