@@ -15,15 +15,16 @@ import {
 } from "../schemas/staffSchemas";
 import { z } from "zod";
 import { encryptNationalId, decryptNationalId, maskNationalId } from "../utilities/nationalIdCrypto";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Allowed document types and helpers for upload
 const documentTypeEnum = z.enum(["id", "medical", "employment_contract"]);
+
 function getFileExtension(name?: string | null) {
   if (!name) return "";
   const idx = name.lastIndexOf(".");
   return idx >= 0 ? name.slice(idx) : "";
 }
+
 async function maybeUploadStaffDocument(opts: {
   admin: ReturnType<typeof getAdminClient>;
   bucket: string;

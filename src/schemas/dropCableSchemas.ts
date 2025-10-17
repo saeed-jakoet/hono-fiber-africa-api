@@ -69,6 +69,18 @@ export const dropCableInsertSchema = z.object({
   technician_name: z.string().optional(),
   technician_id: z.string().optional(),
 
+  //Invoice details
+  survey_planning: z.boolean().optional(),
+  callout: z.boolean().optional(),
+  installation: z.boolean().optional(),
+  spon_budi_opti: z.boolean().optional(),
+  splitter_install: z.boolean().optional(),
+  mousepad_install: z.boolean().optional(),
+
+  // Additional cost
+  additonal_cost: z.number().nonnegative().optional(),
+  additonal_cost_reason: z.string().optional(),
+
   // Status
   status: dropCableStatusEnum.optional(),
   // Notes can be a simple string (legacy) or an array of note objects with timestamp

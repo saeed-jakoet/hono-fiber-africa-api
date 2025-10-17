@@ -9,6 +9,7 @@ import {
   sendDropCableAccessRequest,
 } from "../controllers/dropCable";
 import { requireRole } from "../middleware/requireRole";
+import { getWeeklyTotals } from "../controllers/dropCable";
 
 const dropCable = new Hono();
 
@@ -21,5 +22,6 @@ dropCable.post("/", addDropCable);
 dropCable.put("/", editDropCable);
 
 dropCable.post("email/drop-cable-access", sendDropCableAccessRequest);
+dropCable.post("/weekly-totals", getWeeklyTotals);
 
 export default dropCable;

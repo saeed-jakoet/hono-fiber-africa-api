@@ -33,7 +33,7 @@ app.use("*", async (c, next) => {
 app.get("/health", (c) => c.json({ status: "ok" }));
 
 // CSRF protection (after CORS & logging, before routes)
-app.use("*", csrfProtection());
+// app.use("*", csrfProtection());
 
 app.use("*", async (c, next) => {
   const cookies = getCookie(c);
