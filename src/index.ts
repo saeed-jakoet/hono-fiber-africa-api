@@ -2,6 +2,11 @@ import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
 import { getCookie } from "hono/cookie";
+import {
+  ensureCsrfCookie,
+  refreshCsrfCookie,
+  CSRF_COOKIE,
+} from "./middleware/csrf";
 
 import authRoutes from "./routes/auth";
 import refreshRouter from "./routes/refreshToken";
@@ -32,8 +37,14 @@ app.use("*", async (c, next) => {
 
 app.get("/health", (c) => c.json({ status: "ok" }));
 
+// Endpoint to refresh CSRF token (before CSRF middleware so it doesn't get validated)
+app.get("/csrf/refresh", (c) => {
+  const token = refreshCsrfCookie(c);
+  return c.json({ status: "success", token });
+});
+
 // CSRF protection (after CORS & logging, before routes)
-// app.use("*", csrfProtection());
+app.use("*", csrfProtection());
 
 app.use("*", async (c, next) => {
   const cookies = getCookie(c);

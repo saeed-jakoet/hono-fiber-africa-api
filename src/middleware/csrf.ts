@@ -21,11 +21,24 @@ export function ensureCsrfCookie(c: Context) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 6, // 6 hours (adjust as needed)
+      maxAge: 21600 // 6 hours
     });
     return token;
   }
   return existing;
+}
+
+// Force refresh the CSRF cookie (for /csrf/refresh endpoint)
+export function refreshCsrfCookie(c: Context) {
+  const token = generateCsrfToken();
+  setCookie(c, CSRF_COOKIE, token, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 21600 // 6 hours
+  });
+  return token;
 }
 
 // Middleware to validate CSRF on state-changing requests
@@ -41,6 +54,7 @@ export const csrfProtection = () => {
       "/auth/forgot-password",
       "/auth/reset-password",
       "/refresh/refresh-token",
+      "/csrf/refresh",
     ]; // refresh is controlled separately
 
     if (isMutation && !skipPaths.includes(path)) {
