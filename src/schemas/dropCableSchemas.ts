@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+// Helper for optional nullable strings
+const optionalNullableString = z.string().nullable().optional();
+
 export const dropCableStatusEnum = z.enum([
   "awaiting_client_confirmation_date",
   "survey_required",
@@ -10,6 +13,7 @@ export const dropCableStatusEnum = z.enum([
   "lla_received",
   "installation_scheduled",
   "installation_completed",
+  "installation_complete_as_built_outstanding",
   "as_built_submitted",
   "issue_logged",
   "on_hold",
@@ -20,7 +24,10 @@ export const dropCableStatusEnum = z.enum([
   "site_not_ready",
 ]);
 
-export const countyEnum = z.enum(["tablebay", "falsebay"]).optional();
+export const countyEnum = z
+  .enum(["tablebay", "falsebay"])
+  .nullable()
+  .optional();
 
 //TODO: add week of year to schema
 export const dropCableInsertSchema = z.object({
@@ -33,41 +40,45 @@ export const dropCableInsertSchema = z.object({
   // Business/site info
   site_b_name: z.string().min(1),
   county: countyEnum,
-  physical_address_site_b: z.string().optional(),
+  physical_address_site_b: optionalNullableString,
 
   // People
-  pm: z.string().optional(),
-  client: z.string().optional(),
-  client_contact_name: z.string().optional(),
-  end_client_contact_name: z.string().optional(),
-  end_client_contact_email: z.string().email().optional(),
-  end_client_contact_phone: z.string().optional(),
+  pm: optionalNullableString,
+  client: optionalNullableString,
+  client_contact_name: optionalNullableString,
+  end_client_contact_name: optionalNullableString,
+  end_client_contact_email: z.string().email().nullable().optional(),
+  end_client_contact_phone: optionalNullableString,
 
   // Service provider
-  service_provider: z.string().optional(),
+  service_provider: optionalNullableString,
 
   // Technicals
-  dpc_distance_meters: z.number().nonnegative().optional(),
+  dpc_distance_meters: z.number().nonnegative().nullable().optional(),
 
   // Timeline fields
-  survey_scheduled_date: z.string().optional(),
-  survey_scheduled_time: z.string().optional(),
-  survey_completed_at: z.string().optional(),
-  installation_scheduled_date: z.string().optional(),
-  installation_scheduled_time: z.string().optional(),
-  installation_completed_date: z.string().optional(),
-  lla_sent_at: z.string().optional(),
-  lla_received_at: z.string().optional(),
-  as_built_submitted_at: z.string().optional(),
+  survey_scheduled_date: optionalNullableString,
+  survey_scheduled_time: optionalNullableString,
+  survey_completed_at: optionalNullableString,
+  installation_scheduled_date: optionalNullableString,
+  installation_scheduled_time: optionalNullableString,
+  installation_completed_date: optionalNullableString,
+  lla_sent_at: optionalNullableString,
+  lla_received_at: optionalNullableString,
+  as_built_submitted_at: optionalNullableString,
+  installation_complete_as_built_outstanding: optionalNullableString,
+  quote_no: optionalNullableString,
   //TODO: remove unused
-  order_received_at: z.string().optional(),
-  installation_date_requested_at: z.string().optional(),
-  survey_scheduled_for: z.string().optional(),
-  week: z.string().optional(),
+  order_received_at: optionalNullableString,
+  installation_date_requested_at: optionalNullableString,
+  survey_scheduled_for: optionalNullableString,
+
+  link_manager: optionalNullableString,
+  week: optionalNullableString,
 
   // Assignment
-  technician_name: z.string().optional(),
-  technician_id: z.string().optional(),
+  technician_name: optionalNullableString,
+  technician_id: z.string().nullable().optional(),
 
   //Invoice details
   survey_planning: z.boolean().optional(),
@@ -78,19 +89,14 @@ export const dropCableInsertSchema = z.object({
   mousepad_install: z.boolean().optional(),
 
   // Installation completion override (percentage of install to be paid: 0-100)
-  install_completion_percent: z
-    .number()
-    .min(0)
-    .max(100)
-    .nullable()
-    .optional(),
+  install_completion_percent: z.number().min(0).max(100).nullable().optional(),
 
   // Additional cost
-  additonal_cost: z.number().nonnegative().optional(),
-  additonal_cost_reason: z.string().optional(),
+  additonal_cost: z.number().nonnegative().nullable().optional(),
+  additonal_cost_reason: optionalNullableString,
 
   // Status
-  status: dropCableStatusEnum.optional(),
+  status: dropCableStatusEnum.nullable().optional(),
   // Notes can be a simple string (legacy) or an array of note objects with timestamp
   notes: z
     .union([

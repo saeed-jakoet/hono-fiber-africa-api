@@ -15,8 +15,67 @@ import {
   listDropCablesByTechnician,
 } from "../queries/dropCable";
 import { getServiceCostByClientAndOrderType } from "../queries/serviceCost";
+import { getClientById } from "../queries/client";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
+
+// Normalize top-level fields: convert empty strings to null to allow clearing values
+function normalizeEmptyToNull<T extends Record<string, any>>(obj: T): T {
+  const out: Record<string, any> = {};
+  for (const [k, v] of Object.entries(obj || {})) {
+    if (typeof v === "string" && v.trim() === "") out[k] = null;
+    else out[k] = v;
+  }
+  return out as T;
+}
+
+// Quote number helpers
+const WEEK_QUOTE_OFFSET_BASE = 1092; // Example: week 40 => 1092 + 40 = 1132 -> Q01132
+function detectClientPrefix(clientName?: string | null): "BMCT" | "GIO" | null {
+  if (!clientName) return null;
+  const n = String(clientName).toLowerCase();
+  if (
+    n.includes("britelinkmct") ||
+    n.includes("britelink mct") ||
+    n.includes("britelink")
+  )
+    return "BMCT";
+  if (n.includes("gio")) return "GIO";
+  return null;
+}
+// Parse input week which can be a number-like string or canonical 'YYYY-WW'
+function parseWeekYear(val: any): { year: number; week: number } | null {
+  if (val === null || typeof val === "undefined" || val === "") return null;
+  const s = String(val).trim();
+  const m = s.match(/^(\d{4})[-/](\d{1,2})$/);
+  if (m) {
+    const year = parseInt(m[1], 10);
+    const week = parseInt(m[2], 10);
+    if (Number.isFinite(year) && Number.isFinite(week)) return { year, week };
+    return null;
+  }
+  const w = parseInt(s, 10);
+  if (Number.isFinite(w)) return { year: new Date().getFullYear(), week: w };
+  return null;
+}
+
+function canonicalizeWeek(val: any): string | null {
+  const parsed = parseWeekYear(val);
+  if (!parsed) return null;
+  const ww = String(parsed.week).padStart(2, "0");
+  return `${parsed.year}-${ww}`;
+}
+
+function computeQuoteNo(prefix: "BMCT" | "GIO", weekVal: any): string | null {
+  if (!prefix) return null;
+  const parsed = parseWeekYear(weekVal);
+  if (!parsed) return null;
+  const w = parsed.week;
+  if (!Number.isFinite(w)) return null;
+  const seq = WEEK_QUOTE_OFFSET_BASE + w;
+  const padded = String(seq).padStart(5, "0");
+  return `${prefix}-Q${padded}`;
+}
 
 export const getDropCables = async (c: any) => {
   try {
@@ -77,7 +136,31 @@ export const addDropCable = async (c: any) => {
         timestamp: String(n.timestamp ?? nowIso),
       }));
     }
-    const { data, error } = await createDropCable(db, payload);
+
+    // Canonicalize week to 'YYYY-WW' if provided
+    if (Object.prototype.hasOwnProperty.call(payload, "week")) {
+      const canon = canonicalizeWeek(payload.week);
+      payload.week = canon;
+    }
+    // Auto-generate quote_no if week is provided and client is BMCT or GIO
+    if (payload.client_id && "week" in payload && payload.week) {
+      try {
+        const { data: client } = await getClientById(db, payload.client_id);
+        const prefix = detectClientPrefix(
+          client?.company_name || payload.client || ""
+        );
+        if (prefix) {
+          const q = computeQuoteNo(prefix, payload.week);
+          if (q) payload.quote_no = q;
+        }
+      } catch (e) {
+        // non-fatal if client fetch fails
+        console.warn("quote_no generation skipped:", e);
+      }
+    }
+    // Convert all empty strings to null so DB stores NULL rather than ""
+    const normalized = normalizeEmptyToNull(payload);
+    const { data, error } = await createDropCable(db, normalized);
     if (error) return errorResponse(error.message, 400);
     return successResponse(data, "Drop cable job created");
   } catch (e: any) {
@@ -122,6 +205,36 @@ export const editDropCable = async (c: any) => {
         : [];
       finalPayload.notes = [...existingNotes, ...toAppend];
     }
+
+    // Canonicalize week if present in body
+    if (Object.prototype.hasOwnProperty.call(body, "week")) {
+      finalPayload.week = canonicalizeWeek((finalPayload as any).week);
+      // Auto-generate or clear quote_no based on canonical week
+      // Determine client id: from payload or fetch existing row
+      let clientIdForQuote = finalPayload.client_id as string | undefined;
+      if (!clientIdForQuote) {
+        const { data: existing } = await getDropCableById(db, id);
+        clientIdForQuote = existing?.client_id;
+        if (!finalPayload.client && existing?.client) {
+          finalPayload.client = existing.client; // allow prefix detection fallback
+        }
+      }
+      if (clientIdForQuote) {
+        try {
+          const { data: client } = await getClientById(db, clientIdForQuote);
+          const prefix = detectClientPrefix(
+            client?.company_name || finalPayload.client || ""
+          );
+          const q = computeQuoteNo(prefix as any, (finalPayload as any).week);
+          // If week provided but invalid/null => q will be null and we clear quote_no
+          (finalPayload as any).quote_no = q;
+        } catch (e) {
+          console.warn("quote_no generation on update skipped:", e);
+        }
+      }
+    }
+    // Convert all empty strings to null so DB stores NULL rather than ""
+    finalPayload = normalizeEmptyToNull(finalPayload);
     const { data, error } = await updateDropCable(db, id, finalPayload);
     if (error) return errorResponse(error.message, 400);
     return successResponse(data, "Drop cable job updated");
@@ -175,10 +288,11 @@ export const sendDropCableAccessRequest = async (c: any) => {
 
   try {
     const result = await resend.emails.send({
-      from: "admin@ikiesprayworx.co.za",
+      from: "admin@fiberafrica.co.za",
       to,
       subject,
       html,
+      cc: ["admin@fiberafrica.co.za"], 
     });
     return c.json({ status: "success", message: "Email sent", result });
   } catch (error: any) {
@@ -201,21 +315,29 @@ export const getWeeklyTotals = async (c: any) => {
       })
       .safeParse(body);
     if (!parsed.success) return errorResponse("Invalid input", 400);
-    const { client_id, order_type, week } = parsed.data;
+    const { client_id, order_type } = parsed.data;
+    let { week } = parsed.data as any;
 
     // Only drop_cable supported
     const orderType = String(order_type).toLowerCase().replace(/-/g, "_");
     if (orderType !== "drop_cable")
       return errorResponse("Unsupported order_type", 400);
 
+    // Canonicalize week to 'YYYY-WW'
+    const canonWeek = ((): string => {
+      const parsedW = parseWeekYear(week);
+      if (!parsedW) return String(week);
+      return `${parsedW.year}-${String(parsedW.week).padStart(2, "0")}`;
+    })();
+
     // Fetch orders for week
     const { data: orders, error: ordersErr } = await db
       .from("drop_cable")
       .select(
-        "id, circuit_number, site_b_name, county, pm, dpc_distance_meters, survey_planning, callout, installation, spon_budi_opti, splitter_install, mousepad_install, additonal_cost, install_completion_percent"
+        "id, circuit_number, site_b_name, county, pm, dpc_distance_meters, survey_planning, callout, installation, spon_budi_opti, splitter_install, mousepad_install, additonal_cost, install_completion_percent, quote_no"
       )
       .eq("client_id", client_id)
-      .eq("week", String(week));
+      .eq("week", canonWeek);
     if (ordersErr) return errorResponse(ordersErr.message, 400);
 
     // Fetch service costs
@@ -272,6 +394,7 @@ export const getWeeklyTotals = async (c: any) => {
         mousepad_cost: mousepad,
         additional_cost: additional,
         total,
+        quote_no: o.quote_no,
       };
     });
 
