@@ -2,11 +2,7 @@ import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
 import { getCookie } from "hono/cookie";
-import {
-  ensureCsrfCookie,
-  refreshCsrfCookie,
-  CSRF_COOKIE,
-} from "./middleware/csrf";
+import { refreshCsrfCookie } from "./middleware/csrf";
 
 import authRoutes from "./routes/auth";
 import refreshRouter from "./routes/refreshToken";
