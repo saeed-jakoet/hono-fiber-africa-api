@@ -292,7 +292,7 @@ export const sendDropCableAccessRequest = async (c: any) => {
       to,
       subject,
       html,
-      cc: ["admin@fiberafrica.co.za"], 
+      cc: ["admin@fiberafrica.co.za"],
     });
     return c.json({ status: "success", message: "Email sent", result });
   } catch (error: any) {
@@ -300,7 +300,6 @@ export const sendDropCableAccessRequest = async (c: any) => {
   }
 };
 
-// Calculate weekly totals for a client's orders of a given type
 export const getWeeklyTotals = async (c: any) => {
   try {
     const db = getSupabaseForRequest(c);
@@ -358,9 +357,9 @@ export const getWeeklyTotals = async (c: any) => {
       if (o.installation) {
         const distance = Number(o.dpc_distance_meters || 0);
         const flat = Number(price.installation_cost || 0); // e.g., 1997.5
-        const perMeter = 19.98;
+        const perMeter = Number(price.per_meter_rate || 0);
         const base = distance < 101 ? flat : distance * perMeter;
-        const discounted = base * 0.85; // apply 15% discount
+        const discounted = base * Number(price.discount || 0); // apply 15% discount
         // If percent provided, subtract that percent from discounted base (e.g., 50% => pay 50% less)
         install =
           hasPct && pct > 0
