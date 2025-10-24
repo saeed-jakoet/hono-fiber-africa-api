@@ -39,3 +39,8 @@ export const listDropCablesByTechnician = async (
     .select("*, clients(company_name)")
     .eq("technician_id", technicianId)
     .order("created_at", { ascending: false });
+
+export const deleteDropCable = async (
+  db: SupabaseClient,
+  id: string
+) => db.from(TABLE).delete().eq("id", id).select("*").maybeSingle();

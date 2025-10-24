@@ -7,6 +7,7 @@ import {
   getDropCablesByClient,
   getDropCablesByTechnician,
   sendDropCableAccessRequest,
+  deleteDropCable,
 } from "../controllers/dropCable";
 import { requireRole } from "../middleware/requireRole";
 import { getWeeklyTotals } from "../controllers/dropCable";
@@ -23,5 +24,8 @@ dropCable.put("/", editDropCable);
 
 dropCable.post("email/drop-cable-access", sendDropCableAccessRequest);
 dropCable.post("/weekly-totals", getWeeklyTotals);
+
+// Delete a drop-cable order by id
+dropCable.delete("/:id", deleteDropCable);
 
 export default dropCable;

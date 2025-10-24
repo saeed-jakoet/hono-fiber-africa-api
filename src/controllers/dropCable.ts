@@ -13,6 +13,7 @@ import {
   updateDropCable,
   listDropCablesByClient,
   listDropCablesByTechnician,
+  deleteDropCable as deleteDropCableQuery,
 } from "../queries/dropCable";
 import { getServiceCostByClientAndOrderType } from "../queries/serviceCost";
 import { getClientById } from "../queries/client";
@@ -83,6 +84,25 @@ export const getDropCables = async (c: any) => {
     const { data, error } = await listDropCables(db);
     if (error) return errorResponse(error.message, 400);
     return successResponse(data ?? [], "Drop cables fetched");
+  } catch (e: any) {
+    console.error(e);
+    return errorResponse(e.message || "Unexpected error", 500);
+  }
+};
+
+export const deleteDropCable = async (c: any) => {
+  try {
+    const id = c.req.param("id");
+    if (!id) return errorResponse("Missing id", 400);
+    // Basic UUID v4 format check; keep lightweight since DB will also enforce
+    const isUuid = /^[0-9a-fA-F-]{36}$/.test(id);
+    if (!isUuid) return errorResponse("Invalid id format", 400);
+
+    const db = getSupabaseForRequest(c);
+    const { data, error } = await deleteDropCableQuery(db, id);
+    if (error) return errorResponse(error.message, 400);
+    if (!data) return successResponse(null, "No record found or already deleted");
+    return successResponse(data, "Drop cable job deleted");
   } catch (e: any) {
     console.error(e);
     return errorResponse(e.message || "Unexpected error", 500);

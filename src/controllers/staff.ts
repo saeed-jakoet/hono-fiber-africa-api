@@ -445,7 +445,7 @@ export const grantAccessController = async (c: any) => {
     const tempPassword =
       password && password.length >= 8
         ? password
-        : cryptoMod.randomBytes(16).toString("hex");
+        : cryptoMod.randomBytes(4).toString("hex");
     const { data: authRes, error: authErr } = await admin.auth.admin.createUser(
       {
         email,
