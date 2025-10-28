@@ -21,7 +21,12 @@ app.use(logger());
 app.use(
   "*",
   cors({
-    origin: ["http://localhost:3000", "http://192.168.3.89:3000"],
+    origin: [
+      "http://localhost:3000",
+      "http://192.168.3.89:3000",
+      "https://react-admin-hub.vercel.app",
+      // Add any Vercel preview URLs here if needed
+    ],
     credentials: true,
   })
 );

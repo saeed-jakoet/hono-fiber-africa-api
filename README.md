@@ -34,7 +34,7 @@ Server will listen on http://localhost:3001 (adjust PORT if needed).
 ## CORS & Cookies
 `src/index.ts` sets CORS with credentials for:
 ```ts
-cors({ origin: ["http://localhost:3000", "http://192.168.3.89:3000"], credentials: true })
+cors({ origin: ["http://localhost:3000"], credentials: true })
 ```
 Update origins or use `FRONTEND_ORIGINS` to inject your domain(s).
 
