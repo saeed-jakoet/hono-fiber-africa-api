@@ -22,6 +22,7 @@ export const dropCableStatusEnum = z.enum([
   "awaiting_service_provider",
   "adw_required",
   "site_not_ready",
+  "to_be_cancelled"
 ]);
 
 export const countyEnum = z
@@ -87,6 +88,10 @@ export const dropCableInsertSchema = z.object({
   spon_budi_opti: z.boolean().optional(),
   splitter_install: z.boolean().optional(),
   mousepad_install: z.boolean().optional(),
+
+  // Multipliers for certain services (1x, 2x, 3x)
+  survey_planning_multiplier: z.number().int().min(1).max(3).nullable().optional(),
+  callout_multiplier: z.number().int().min(1).max(3).nullable().optional(),
 
   // Installation completion override (percentage of install to be paid: 0-100)
   install_completion_percent: z.number().min(0).max(100).nullable().optional(),

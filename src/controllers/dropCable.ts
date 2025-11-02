@@ -16,7 +16,6 @@ import {
   deleteDropCable as deleteDropCableQuery,
 } from "../queries/dropCable";
 import { getServiceCostByClientAndOrderType } from "../queries/serviceCost";
-import { getClientById } from "../queries/client";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
@@ -30,20 +29,6 @@ function normalizeEmptyToNull<T extends Record<string, any>>(obj: T): T {
   return out as T;
 }
 
-// Quote number helpers
-const WEEK_QUOTE_OFFSET_BASE = 1092; // Example: week 40 => 1092 + 40 = 1132 -> Q01132
-function detectClientPrefix(clientName?: string | null): "BMCT" | "GIO" | null {
-  if (!clientName) return null;
-  const n = String(clientName).toLowerCase();
-  if (
-    n.includes("britelinkmct") ||
-    n.includes("britelink mct") ||
-    n.includes("britelink")
-  )
-    return "BMCT";
-  if (n.includes("gio")) return "GIO";
-  return null;
-}
 // Parse input week which can be a number-like string or canonical 'YYYY-WW'
 function parseWeekYear(val: any): { year: number; week: number } | null {
   if (val === null || typeof val === "undefined" || val === "") return null;
@@ -65,17 +50,6 @@ function canonicalizeWeek(val: any): string | null {
   if (!parsed) return null;
   const ww = String(parsed.week).padStart(2, "0");
   return `${parsed.year}-${ww}`;
-}
-
-function computeQuoteNo(prefix: "BMCT" | "GIO", weekVal: any): string | null {
-  if (!prefix) return null;
-  const parsed = parseWeekYear(weekVal);
-  if (!parsed) return null;
-  const w = parsed.week;
-  if (!Number.isFinite(w)) return null;
-  const seq = WEEK_QUOTE_OFFSET_BASE + w;
-  const padded = String(seq).padStart(5, "0");
-  return `${prefix}-Q${padded}`;
 }
 
 export const getDropCables = async (c: any) => {
@@ -162,22 +136,6 @@ export const addDropCable = async (c: any) => {
       const canon = canonicalizeWeek(payload.week);
       payload.week = canon;
     }
-    // Auto-generate quote_no if week is provided and client is BMCT or GIO
-    if (payload.client_id && "week" in payload && payload.week) {
-      try {
-        const { data: client } = await getClientById(db, payload.client_id);
-        const prefix = detectClientPrefix(
-          client?.company_name || payload.client || ""
-        );
-        if (prefix) {
-          const q = computeQuoteNo(prefix, payload.week);
-          if (q) payload.quote_no = q;
-        }
-      } catch (e) {
-        // non-fatal if client fetch fails
-        console.warn("quote_no generation skipped:", e);
-      }
-    }
     // Convert all empty strings to null so DB stores NULL rather than ""
     const normalized = normalizeEmptyToNull(payload);
     const { data, error } = await createDropCable(db, normalized);
@@ -229,29 +187,6 @@ export const editDropCable = async (c: any) => {
     // Canonicalize week if present in body
     if (Object.prototype.hasOwnProperty.call(body, "week")) {
       finalPayload.week = canonicalizeWeek((finalPayload as any).week);
-      // Auto-generate or clear quote_no based on canonical week
-      // Determine client id: from payload or fetch existing row
-      let clientIdForQuote = finalPayload.client_id as string | undefined;
-      if (!clientIdForQuote) {
-        const { data: existing } = await getDropCableById(db, id);
-        clientIdForQuote = existing?.client_id;
-        if (!finalPayload.client && existing?.client) {
-          finalPayload.client = existing.client; // allow prefix detection fallback
-        }
-      }
-      if (clientIdForQuote) {
-        try {
-          const { data: client } = await getClientById(db, clientIdForQuote);
-          const prefix = detectClientPrefix(
-            client?.company_name || finalPayload.client || ""
-          );
-          const q = computeQuoteNo(prefix as any, (finalPayload as any).week);
-          // If week provided but invalid/null => q will be null and we clear quote_no
-          (finalPayload as any).quote_no = q;
-        } catch (e) {
-          console.warn("quote_no generation on update skipped:", e);
-        }
-      }
     }
     // Convert all empty strings to null so DB stores NULL rather than ""
     finalPayload = normalizeEmptyToNull(finalPayload);
@@ -353,7 +288,7 @@ export const getWeeklyTotals = async (c: any) => {
     const { data: orders, error: ordersErr } = await db
       .from("drop_cable")
       .select(
-        "id, circuit_number, site_b_name, county, pm, dpc_distance_meters, survey_planning, callout, installation, spon_budi_opti, splitter_install, mousepad_install, additonal_cost, install_completion_percent, quote_no"
+        "id, circuit_number, site_b_name, county, pm, dpc_distance_meters, survey_planning, callout, installation, spon_budi_opti, splitter_install, mousepad_install, additonal_cost, install_completion_percent, quote_no, survey_planning_multiplier, callout_multiplier"
       )
       .eq("client_id", client_id)
       .eq("week", canonWeek);
@@ -372,7 +307,11 @@ export const getWeeklyTotals = async (c: any) => {
       const pct = Number(o.install_completion_percent);
       const hasPct = Number.isFinite(pct) && pct >= 0 && pct <= 100;
 
-      // Installation cost: distance-based base then 15% discount, optional percent reduction
+      // Get multipliers from order (default to 1 if not set)
+      const surveyMult = Number(o.survey_planning_multiplier) || 1;
+      const calloutMult = Number(o.callout_multiplier) || 1;
+
+      // Installation cost: distance-based base then 15% discount, optional percent reduction (no multiplier)
       let install = 0;
       if (o.installation) {
         const distance = Number(o.dpc_distance_meters || 0);
@@ -381,14 +320,14 @@ export const getWeeklyTotals = async (c: any) => {
         const base = distance < 101 ? flat : distance * perMeter;
         const discounted = base * Number(price.discount || 0); // apply 15% discount
         // If percent provided, subtract that percent from discounted base (e.g., 50% => pay 50% less)
-        install =
-          hasPct && pct > 0
+        install = hasPct && pct > 0
             ? round2(discounted * (pct / 100))
             : round2(discounted);
       }
 
-      const survey = take(o.survey_planning, price.survey_planning_cost);
-      const callout = take(o.callout, price.callout_cost);
+      // Apply multipliers to survey and callout costs
+      const survey = take(o.survey_planning, price.survey_planning_cost) * surveyMult;
+      const callout = take(o.callout, price.callout_cost) * calloutMult;
       const spon = take(o.spon_budi_opti, price.spon_budi_opti_cost);
       const splitter = take(o.splitter_install, price.splitter_install_cost);
       const mousepad = take(o.mousepad_install, price.mousepad_install_cost);
