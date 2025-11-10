@@ -30,7 +30,6 @@ export const countyEnum = z
   .nullable()
   .optional();
 
-//TODO: add week of year to schema
 export const dropCableInsertSchema = z.object({
   // Client relationship
   client_id: z.string().uuid(),
