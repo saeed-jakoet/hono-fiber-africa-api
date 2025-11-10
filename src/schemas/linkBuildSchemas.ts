@@ -36,10 +36,10 @@ export const linkBuildInsertSchema = z.object({
   client_contact_name: optionalNullableString,
 
   // ATP (Acceptance Test Procedure) details
+  submission_date: optionalNullableString, // Date string
   atp_pack_submitted: optionalNullableString, // Date string
   splice_and_float: optionalNullableString, // String for dropdown selection
   check_date: optionalNullableString,
-  submission_date: optionalNullableString,
   atp_pack_loaded: optionalNullableString, // Now a date string
   atp_date: optionalNullableString,
 
