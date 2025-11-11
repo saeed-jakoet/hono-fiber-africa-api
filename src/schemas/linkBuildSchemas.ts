@@ -10,13 +10,15 @@ export const countyEnum = z
 
 export const linkBuildStatusEnum = z
   .enum([
-    "Not Started",
-    "Work in Progress",
-    "Completed",
-    "Completed Asbuild Outstanding",
-    "Cancelled",
-    "On Hold",
-    "Awaiting Health and Safety",
+    "not_started",
+    "work_in_progress",
+    "completed",
+    "completed_asbuild_outstanding",
+    "cancelled",
+    "On_hold",
+    "awaiting_health_and_safety",
+    "adw_required",
+    "special_access_required"
   ])
   .nullable()
   .optional();
@@ -55,6 +57,7 @@ export const linkBuildInsertSchema = z.object({
   // Additional info
   week: optionalNullableString,
   notes: z.any().nullable().optional(), // JSONB field for notes array
+  quote_no: optionalNullableString,
 });
 
 // Update schema with id in body
