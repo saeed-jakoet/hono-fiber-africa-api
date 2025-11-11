@@ -56,7 +56,19 @@ async function maybeUploadStaffDocument(opts: {
 export const getStaffList = async (c: any) => {
   try {
     const db = getSupabaseForRequest(c);
-    const { data, error } = await listStaff(db);
+    
+    // Check if role filter is provided in query params
+    const role = c.req.query("role");
+    
+    let query = db.from("staff").select("*");
+    
+    // Apply role filter if provided
+    if (role) {
+      query = query.eq("role", role);
+    }
+    
+    const { data, error } = await query;
+    
     if (error) return errorResponse(error.message, 400);
     // Ensure we never leak plaintext national_id; only masked is returned
     const safe = (data || []).map((row: any) => {
