@@ -7,6 +7,7 @@ import {
   getLinkBuildsByClient,
   getLinkBuildsByTechnician,
   deleteLinkBuild,
+  getLinkBuildWeeklyTotals,
 } from "../controllers/linkBuild";
 
 const linkBuild = new Hono();
@@ -18,6 +19,7 @@ linkBuild.get("/technician/:technicianName", getLinkBuildsByTechnician);
 
 linkBuild.post("/", addLinkBuild);
 linkBuild.put("/", editLinkBuild);
+linkBuild.post("/weekly-totals", getLinkBuildWeeklyTotals);
 
 // Delete a link-build order by id
 linkBuild.delete("/:id", deleteLinkBuild);

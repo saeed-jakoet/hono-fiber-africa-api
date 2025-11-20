@@ -13,6 +13,15 @@ export type ServiceCostRow = {
   spon_budi_opti_cost?: number | null;
   splitter_install_cost?: number | null;
   mousepad_install_cost?: number | null;
+  // Link build pricing fields
+  full_splice_cost?: number | null;
+  full_splice_float_cost?: number | null;
+  full_splice_broadband_cost?: number | null;
+  access_float_cost?: number | null;
+  link_build_discount_15_cost?: number | null;
+  link_build_broadband_discount_15_cost?: number | null;
+  link_build_float_discount_15_cost?: number | null;
+  splice_per_km_after_15_cost?: number | null;
   created_at?: string;
   updated_at?: string;
 };

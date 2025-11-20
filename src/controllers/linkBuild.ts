@@ -1,5 +1,6 @@
 import { getSupabaseForRequest } from "../utilities/supabase";
 import { successResponse, errorResponse } from "../utilities/responses";
+import { z } from "zod";
 import {
   linkBuildInsertSchema,
   linkBuildUpdateWithIdSchema,
@@ -13,6 +14,7 @@ import {
   listLinkBuildsByTechnician,
   deleteLinkBuild as deleteLinkBuildQuery,
 } from "../queries/linkBuild";
+import { getServiceCostByClientAndOrderType } from "../queries/serviceCost";
 
 // Normalize top-level fields: convert empty strings to null to allow clearing values
 function normalizeEmptyToNull<T extends Record<string, any>>(obj: T): T {
@@ -205,3 +207,124 @@ export const getLinkBuildsByTechnician = async (c: any) => {
     return errorResponse(e.message || "Unexpected error", 500);
   }
 };
+
+export const getLinkBuildWeeklyTotals = async (c: any) => {
+  try {
+    const db = getSupabaseForRequest(c);
+    const body = await c.req.json();
+
+    // Input validation
+    const parsed = z
+      .object({
+        client_id: z.string().uuid(),
+        order_type: z.string(),
+        week: z.string(),
+      })
+      .safeParse(body);
+    if (!parsed.success) return errorResponse("Invalid input", 400);
+    const { client_id, order_type } = parsed.data;
+    let { week } = parsed.data as any;
+
+    // Only link_build supported
+    const orderType = String(order_type).toLowerCase().replace(/-/g, "_");
+    if (orderType !== "link_build")
+      return errorResponse("Unsupported order_type", 400);
+
+    // Canonicalize week to 'YYYY-WW'
+    const canonWeek = ((): string => {
+      const parsedW = parseWeekYear(week);
+      if (!parsedW) return String(week);
+      return `${parsedW.year}-${String(parsedW.week).padStart(2, "0")}`;
+    })();
+
+    // Fetch orders for week
+    const { data: orders, error: ordersErr } = await db
+      .from("link_build")
+      .select(
+        "id, circuit_number, site_b_name, county, client, pm, technician, no_of_fiber_pairs, link_distance, no_of_splices_after_15km, service_type, quote_no"
+      )
+      .eq("client_id", client_id)
+      .eq("week", canonWeek);
+    if (ordersErr) return errorResponse(ordersErr.message, 400);
+
+    // Fetch service costs
+    const { data: costs, error: costErr } =
+      await getServiceCostByClientAndOrderType(db, client_id, orderType);
+    if (costErr) return errorResponse(costErr.message, 400);
+    const price = costs || {};
+
+    const items = (orders || []).map((o: any) => {
+      const fiberPairs = Number(o.no_of_fiber_pairs || 0);
+      const linkDistance = Number(o.link_distance || 0);
+      const splicesAfter15 = Number(o.no_of_splices_after_15km || 0);
+      const serviceType = String(o.service_type || "").toLowerCase();
+
+      let baseCost = 0;
+
+      // Determine base cost based on service_type selection
+      if (serviceType === "splice") {
+        // Full splice
+        baseCost = Number(price.full_splice_cost || 7740);
+      } else if (serviceType === "splice_and_float") {
+        // Full splice + float
+        baseCost = Number(price.full_splice_float_cost || 9804);
+      } else if (serviceType === "splice_broadband") {
+        // Full splice broadband
+        baseCost = Number(price.full_splice_broadband_cost || 3250);
+      } else if (serviceType === "access_float") {
+        // Access float
+        baseCost = Number(price.access_float_cost || 2064);
+      } else if (serviceType === "link_build_discount_15") {
+        // Link build -15%
+        baseCost = Number(price.link_build_discount_15_cost || 6579);
+      } else if (serviceType === "link_build_broadband_discount_15") {
+        // Link build broadband -15%
+        baseCost = Number(price.link_build_broadband_discount_15_cost || 2762.50);
+      } else if (serviceType === "link_build_float_discount_15") {
+        // Link build + float -15%
+        baseCost = Number(price.link_build_float_discount_15_cost || 8333.40);
+      }
+
+      // Apply fiber pairs multiplier: if exactly 2, multiply by 2 (capped at 2)
+      if (fiberPairs === 2) {
+        baseCost = baseCost * 2;
+      }
+
+      // Calculate splices after 15km cost
+      const splicePerKm = Number(price.splice_per_km_after_15_cost || 85);
+      const splicesCost = splicesAfter15 * splicePerKm;
+
+      const total = round2(baseCost + splicesCost);
+
+      return {
+        id: o.id,
+        circuit_number: o.circuit_number,
+        site_b_name: o.site_b_name,
+        county: o.county,
+        client: o.client,
+        pm: o.pm,
+        technician: o.technician,
+        fiber_pairs: fiberPairs,
+        link_distance: linkDistance,
+        splices_after_15km: splicesAfter15,
+        service_type: serviceType,
+        base_cost: baseCost,
+        splices_cost: splicesCost,
+        total,
+        quote_no: o.quote_no,
+      };
+    });
+
+    const total = round2(
+      (items || []).reduce((sum: number, it: any) => sum + it.total, 0)
+    );
+    return successResponse({ total, items }, "Weekly totals calculated");
+  } catch (e: any) {
+    console.error(e);
+    return errorResponse(e.message || "Unexpected error", 500);
+  }
+};
+
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
+}
