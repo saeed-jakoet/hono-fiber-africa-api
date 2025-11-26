@@ -44,3 +44,13 @@ export const deleteDropCable = async (
   db: SupabaseClient,
   id: string
 ) => db.from(TABLE).delete().eq("id", id).select("*").maybeSingle();
+
+export const getDropCableInventoryUsed = async (
+  db: SupabaseClient,
+  jobId: string
+) =>
+  db
+    .from(TABLE)
+    .select("id, inventory_used")
+    .eq("id", jobId)
+    .single();

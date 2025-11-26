@@ -6,6 +6,7 @@ import { refreshCsrfCookie } from "./middleware/csrf";
 
 import authRoutes from "./routes/auth";
 import refreshRouter from "./routes/refreshToken";
+import mobileRoutes from "./routes/mobile";
 import inventoryRoutes from "./routes/inventory";
 import clientRoutes from "./routes/clients";
 import dropCableRoutes from "./routes/dropCable";
@@ -26,7 +27,8 @@ app.use(
       "http://localhost:3000",
       "http://192.168.3.89:3000",
       "https://react-admin-hub.vercel.app",
-      // Add any Vercel preview URLs here if needed
+      "http://localhost:8081", // Expo dev server
+      "http://192.168.3.89:8081", // Expo on local network
     ],
     credentials: true,
   })
@@ -46,7 +48,13 @@ app.get("/csrf/refresh", (c) => {
 });
 
 // CSRF protection (after CORS & logging, before routes)
-app.use("*", csrfProtection());
+// Skip CSRF for mobile endpoints (they use JWT Bearer tokens)
+app.use("*", async (c, next) => {
+  if (c.req.path.startsWith("/mobile")) {
+    return next();
+  }
+  return csrfProtection()(c, next);
+});
 
 app.use("*", async (c, next) => {
   const cookies = getCookie(c);
@@ -66,6 +74,7 @@ app.use("*", async (c, next) => {
 
 app.route("/auth", authRoutes);
 app.route("/refresh", refreshRouter);
+app.route("/mobile", mobileRoutes); // Mobile-specific JWT endpoints
 app.route("/inventory", inventoryRoutes);
 app.route("/client", clientRoutes);
 app.route("/drop-cable", dropCableRoutes);
