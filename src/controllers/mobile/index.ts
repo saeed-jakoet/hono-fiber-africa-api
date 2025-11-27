@@ -13,8 +13,9 @@ export {
 
 // Order controllers
 export {
-  mobileGetTechnicianOrders,
-  mobileGetDropCableById,
+  getTechnicianOrders,
+  getDropCable,
+  getLinkBuild,
 } from "./orders";
 
 // Document controllers

@@ -1,14 +1,22 @@
+/**
+ * Mobile API Routes
+ * 
+ * All routes for the Fiber Africa mobile technician app.
+ * Protected routes require a valid JWT token in the Authorization header.
+ */
+
 import { Hono } from "hono";
 import { mobileAuthMiddleware } from "../middleware/mobileAuth";
-import { 
+import {
   // Auth
-  mobileSignIn, 
-  mobileGetMe, 
-  mobileLogout, 
+  mobileSignIn,
+  mobileGetMe,
+  mobileLogout,
   mobileChangePassword,
   // Orders
-  mobileGetTechnicianOrders,
-  mobileGetDropCableById,
+  getTechnicianOrders,
+  getDropCable,
+  getLinkBuild,
   // Documents
   mobileGetHappyLetterTemplate,
   mobileUploadDocument,
@@ -23,31 +31,34 @@ import {
 const mobile = new Hono();
 
 // ============================================
-// Public Endpoints (no auth required)
+// Public Routes (no auth required)
 // ============================================
+
 mobile.post("/signin", mobileSignIn);
 
 // ============================================
-// Protected Endpoints (require valid JWT token)
+// Protected Routes (require valid JWT)
 // ============================================
+
 mobile.use("/*", mobileAuthMiddleware);
 
-// Authentication (protected)
+// --- Auth ---
 mobile.get("/me", mobileGetMe);
 mobile.post("/logout", mobileLogout);
 mobile.post("/change-password", mobileChangePassword);
 
-// Order Endpoints
-mobile.get("/orders/:technicianId", mobileGetTechnicianOrders);
-mobile.get("/drop-cable/:id", mobileGetDropCableById);
+// --- Orders ---
+mobile.get("/orders/:technicianId", getTechnicianOrders);
+mobile.get("/drop-cable/:id", getDropCable);
+mobile.get("/link-build/:id", getLinkBuild);
 
-// Document Endpoints
+// --- Documents ---
 mobile.get("/documents/template/happy-letter", mobileGetHappyLetterTemplate);
 mobile.post("/documents/upload", mobileUploadDocument);
 mobile.get("/documents/job/:jobType/:jobId", mobileListDocumentsForJob);
 mobile.get("/documents/signed-url", mobileGetSignedUrl);
 
-// Inventory Endpoints
+// --- Inventory ---
 mobile.get("/inventory", mobileListInventory);
 mobile.get("/inventory/job/:jobId", mobileGetJobInventory);
 mobile.post("/inventory/usage", mobileApplyInventoryUsage);

@@ -4,6 +4,7 @@ import { InventoryUsagePayload } from "../schemas/inventoryUsageSchema";
 // Map jobType to table name
 const jobTableMap: Record<string, string> = {
   drop_cable: "drop_cable",
+  link_build: "link_build",
   // future: maintenance: "maintenance", fleet: "fleet_jobs", etc.
 };
 

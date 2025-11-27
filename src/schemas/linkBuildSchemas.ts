@@ -48,6 +48,7 @@ export const linkBuildInsertSchema = z.object({
 
   // Technical details
   technician: optionalNullableString,
+  technician_id: z.string().uuid().nullable().optional(),
   no_of_fiber_pairs: z.number().int().nonnegative().nullable().optional(),
   link_distance: z.number().nonnegative().nullable().optional(),
   no_of_splices_after_15km: z.number().int().nonnegative().nullable().optional(),

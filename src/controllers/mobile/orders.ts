@@ -1,96 +1,171 @@
 /**
  * Mobile Orders Controller
- * Handles technician order operations
+ * 
+ * Handles all order-related endpoints for the mobile app.
+ * Technicians can view their assigned drop cables and link builds.
  */
 
+import { Context } from "hono";
 import { successResponse, errorResponse } from "../../utilities/responses";
 import { getAdminClient } from "../../utilities/supabase";
-import { verifyMobileAuth } from "../../utilities/mobile";
-import { 
-  getStaffByAuthUserId, 
-  listOrdersByTechnician, 
-  getOrderById 
+import {
+  getStaffByAuthUserId,
+  getDropCablesByTechnicianId,
+  getDropCableById,
+  getLinkBuildsByTechnicianId,
+  getLinkBuildById,
 } from "../../queries/mobile";
 
+// ============================================
+// Helper Functions
+// ============================================
+
 /**
- * Get technician orders - requires JWT token
+ * Get the authenticated user's staff record.
+ * Returns null if no staff record exists for this auth user.
  */
-export const mobileGetTechnicianOrders = async (c: any) => {
+const getAuthenticatedStaff = async (authUserId: string) => {
+  const admin = getAdminClient();
+  const { data, error } = await getStaffByAuthUserId(admin, authUserId);
+  
+  if (error || !data) {
+    return null;
+  }
+  
+  return data;
+};
+
+/**
+ * Verify the requesting user owns the resource.
+ */
+const verifyOwnership = (c: Context, requestedUserId: string): boolean => {
+  const user = c.get("user");
+  return user?.id === requestedUserId;
+};
+
+// ============================================
+// Order List Endpoints
+// ============================================
+
+/**
+ * GET /mobile/orders/:technicianId
+ * 
+ * Get all orders (drop cables + link builds) for a technician.
+ * Returns orders grouped by type with a total count.
+ */
+export const getTechnicianOrders = async (c: Context) => {
   try {
-    const auth = await verifyMobileAuth(c);
-    if ('error' in auth) {
-      return errorResponse(auth.error, 401);
+    const technicianId = c.req.param("technicianId");
+    
+    if (!technicianId) {
+      return errorResponse("Missing technicianId parameter", 400);
     }
 
-    const authUserId = c.req.param("technicianId");
-    if (!authUserId) {
-      return errorResponse("Missing technicianId", 400);
-    }
-
-    console.log("[Mobile Orders] Auth user ID:", authUserId);
-
-    // Verify the user is requesting their own orders
-    if (auth.payload.id !== authUserId) {
+    // Verify user is requesting their own orders
+    if (!verifyOwnership(c, technicianId)) {
       return errorResponse("Unauthorized", 403);
     }
 
+    // Get staff record from auth user ID
+    const staff = await getAuthenticatedStaff(technicianId);
+    
+    if (!staff) {
+      return successResponse(
+        { drop_cables: [], link_builds: [], total: 0 },
+        "No staff record found"
+      );
+    }
+
+    // Fetch both order types in parallel for efficiency
     const admin = getAdminClient();
-    
-    // First, get the staff record for this auth user
-    const { data: staffData, error: staffError } = await getStaffByAuthUserId(admin, authUserId);
-    
-    console.log("[Mobile Orders] Staff lookup - data:", staffData, "error:", staffError);
-    
-    if (staffError || !staffData) {
-      console.log("[Mobile Orders] No staff record found for this user");
-      return successResponse([], "Orders fetched");
-    }
+    const [dropCablesResult, linkBuildsResult] = await Promise.all([
+      getDropCablesByTechnicianId(admin, staff.id),
+      getLinkBuildsByTechnicianId(admin, staff.id),
+    ]);
 
-    // Now get orders using the staff ID
-    const { data, error } = await listOrdersByTechnician(admin, staffData.id);
-    
-    console.log("[Mobile Orders] Query result - data count:", data?.length || 0, "error:", error);
-    
-    if (error) {
-      return errorResponse(error.message, 400);
-    }
+    const dropCables = dropCablesResult.data ?? [];
+    const linkBuilds = linkBuildsResult.data ?? [];
 
-    return successResponse(data ?? [], "Orders fetched");
+    return successResponse(
+      {
+        drop_cables: dropCables,
+        link_builds: linkBuilds,
+        total: dropCables.length + linkBuilds.length,
+      },
+      "Orders fetched"
+    );
   } catch (e: any) {
     console.error("[Mobile Orders] Error:", e);
     return errorResponse(e.message || "Failed to fetch orders", 500);
   }
 };
 
-/**
- * Get single drop cable order by ID - requires JWT token
- */
-export const mobileGetDropCableById = async (c: any) => {
-  try {
-    const auth = await verifyMobileAuth(c);
-    if ('error' in auth) {
-      return errorResponse(auth.error, 401);
-    }
+// ============================================
+// Drop Cable Endpoints
+// ============================================
 
+/**
+ * GET /mobile/drop-cable/:id
+ * 
+ * Get a single drop cable order by ID.
+ */
+export const getDropCable = async (c: Context) => {
+  try {
     const id = c.req.param("id");
+    
     if (!id) {
       return errorResponse("Missing order id", 400);
     }
 
     const admin = getAdminClient();
-    const { data, error } = await getOrderById(admin, id);
-    
+    const { data, error } = await getDropCableById(admin, id);
+
     if (error) {
       return errorResponse(error.message, 400);
     }
-    
+
     if (!data) {
-      return errorResponse("Drop cable order not found", 404);
+      return errorResponse("Drop cable not found", 404);
     }
 
-    return successResponse(data, "Order fetched");
+    return successResponse(data, "Drop cable fetched");
   } catch (e: any) {
-    console.error("[Mobile Orders] Get order error:", e);
-    return errorResponse(e.message || "Failed to fetch order", 500);
+    console.error("[Mobile Orders] Get drop cable error:", e);
+    return errorResponse(e.message || "Failed to fetch drop cable", 500);
+  }
+};
+
+// ============================================
+// Link Build Endpoints
+// ============================================
+
+/**
+ * GET /mobile/link-build/:id
+ * 
+ * Get a single link build order by ID.
+ */
+export const getLinkBuild = async (c: Context) => {
+  try {
+    const id = c.req.param("id");
+    
+    if (!id) {
+      return errorResponse("Missing order id", 400);
+    }
+
+    const admin = getAdminClient();
+    const { data, error } = await getLinkBuildById(admin, id);
+
+    if (error) {
+      return errorResponse(error.message, 400);
+    }
+
+    if (!data) {
+      return errorResponse("Link build not found", 404);
+    }
+
+    return successResponse(data, "Link build fetched");
+  } catch (e: any) {
+    console.error("[Mobile Orders] Get link build error:", e);
+    return errorResponse(e.message || "Failed to fetch link build", 500);
   }
 };

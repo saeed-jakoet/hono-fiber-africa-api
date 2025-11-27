@@ -9,8 +9,10 @@ export { getUserById, updateUserPassword } from "./auth";
 // Order queries
 export {
   getStaffByAuthUserId,
-  listOrdersByTechnician,
-  getOrderById,
+  getDropCablesByTechnicianId,
+  getDropCableById,
+  getLinkBuildsByTechnicianId,
+  getLinkBuildById,
 } from "./orders";
 
 // Document queries
