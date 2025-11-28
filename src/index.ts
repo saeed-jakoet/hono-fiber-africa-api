@@ -8,6 +8,7 @@ import authRoutes from "./routes/auth";
 import refreshRouter from "./routes/refreshToken";
 import mobileRoutes from "./routes/mobile";
 import inventoryRoutes from "./routes/inventory";
+import inventoryRequestsRoutes from "./routes/inventoryRequests";
 import clientRoutes from "./routes/clients";
 import dropCableRoutes from "./routes/dropCable";
 import linkBuildRoutes from "./routes/linkBuild";
@@ -76,6 +77,7 @@ app.route("/auth", authRoutes);
 app.route("/refresh", refreshRouter);
 app.route("/mobile", mobileRoutes); // Mobile-specific JWT endpoints
 app.route("/inventory", inventoryRoutes);
+app.route("/inventory-requests", inventoryRequestsRoutes); // Inventory approval workflow
 app.route("/client", clientRoutes);
 app.route("/drop-cable", dropCableRoutes);
 app.route("/link-build", linkBuildRoutes);

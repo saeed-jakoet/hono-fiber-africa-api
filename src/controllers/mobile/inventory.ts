@@ -11,11 +11,15 @@ import { verifyMobileAuth } from "../../utilities/mobile";
 import {
   listInventory,
   getJobInventoryUsed,
-  applyInventoryUsage,
   isValidJobType,
   JobType,
 } from "../../queries/mobile/inventory";
 import { inventoryUsageSchema } from "../../schemas/inventoryUsageSchema";
+import {
+  createInventoryRequest,
+  getRequestsByTechnician,
+  getRequestsByJob,
+} from "../../queries/inventoryRequests";
 
 // ============================================
 // Controllers
@@ -101,7 +105,7 @@ export const mobileGetJobInventory = async (c: Context) => {
 
 /**
  * POST /mobile/inventory/usage
- * Apply inventory usage to a job
+ * Submit inventory usage request (requires admin approval)
  * Body: { jobType, jobId, items: [{ inventory_id, quantity, item_name?, unit? }] }
  */
 export const mobileApplyInventoryUsage = async (c: Context) => {
@@ -126,21 +130,94 @@ export const mobileApplyInventoryUsage = async (c: Context) => {
       return errorResponse(`Invalid job type: ${jobType}`, 400);
     }
 
+    // Get staff ID from auth payload (staff table ID, not auth user ID)
+    const technicianId = auth.payload?.staffId;
+    if (!technicianId) {
+      return errorResponse("Unable to identify technician. Please log out and log back in.", 400);
+    }
+
     const db = getAdminClient();
-    const { data, error } = await applyInventoryUsage(db, {
-      jobType: jobType as JobType,
-      jobId,
+    
+    // Create a pending inventory request instead of directly applying
+    const { data, error } = await createInventoryRequest(db, {
+      job_id: jobId,
+      job_type: jobType,
+      technician_id: technicianId,
       items,
     });
 
     if (error) {
-      console.error("[Mobile Inventory] Apply usage error:", error);
+      console.error("[Mobile Inventory] Create request error:", error);
       return errorResponse(error.message, 400);
     }
 
-    return successResponse(data, "Inventory usage applied successfully");
+    return successResponse(data, "Inventory request submitted for approval");
   } catch (e: any) {
-    console.error("[Mobile Inventory] Apply usage error:", e);
-    return errorResponse(e.message || "Failed to apply inventory usage", 500);
+    console.error("[Mobile Inventory] Create request error:", e);
+    return errorResponse(e.message || "Failed to submit inventory request", 500);
+  }
+};
+
+/**
+ * GET /mobile/inventory/requests
+ * Get technician's inventory requests
+ */
+export const mobileGetMyRequests = async (c: Context) => {
+  try {
+    const auth = await verifyMobileAuth(c);
+    if ("error" in auth) {
+      return errorResponse(auth.error, 401);
+    }
+
+    const technicianId = auth.payload?.id;
+    if (!technicianId) {
+      return errorResponse("Unable to identify technician", 400);
+    }
+
+    const db = getAdminClient();
+    const { data, error } = await getRequestsByTechnician(db, technicianId);
+
+    if (error) {
+      console.error("[Mobile Inventory] Get requests error:", error);
+      return errorResponse(error.message, 400);
+    }
+
+    return successResponse(data ?? [], "Inventory requests fetched");
+  } catch (e: any) {
+    console.error("[Mobile Inventory] Get requests error:", e);
+    return errorResponse(e.message || "Failed to fetch inventory requests", 500);
+  }
+};
+
+/**
+ * GET /mobile/inventory/requests/job/:jobId
+ * Get inventory requests for a specific job
+ */
+export const mobileGetJobRequests = async (c: Context) => {
+  try {
+    const auth = await verifyMobileAuth(c);
+    if ("error" in auth) {
+      return errorResponse(auth.error, 401);
+    }
+
+    const jobId = c.req.param("jobId");
+    const jobType = c.req.query("jobType") || "drop_cable";
+
+    if (!jobId) {
+      return errorResponse("Missing job ID", 400);
+    }
+
+    const db = getAdminClient();
+    const { data, error } = await getRequestsByJob(db, jobId, jobType);
+
+    if (error) {
+      console.error("[Mobile Inventory] Get job requests error:", error);
+      return errorResponse(error.message, 400);
+    }
+
+    return successResponse(data ?? [], "Job inventory requests fetched");
+  } catch (e: any) {
+    console.error("[Mobile Inventory] Get job requests error:", e);
+    return errorResponse(e.message || "Failed to fetch job inventory requests", 500);
   }
 };

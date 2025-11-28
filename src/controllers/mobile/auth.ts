@@ -34,9 +34,20 @@ export const mobileSignIn = async (c: any) => {
       return errorResponse(error.message, 400);
     }
 
-    // Generate JWT token
+    const authUserId = data?.user?.id;
+
+    // Fetch staff record to get staff ID for inventory requests
+    const admin = getAdminClient();
+    const { data: staffRecord } = await admin
+      .from("staff")
+      .select("id")
+      .eq("auth_user_id", authUserId)
+      .single();
+
+    // Generate JWT token with both auth user ID and staff ID
     const token = await generateMobileToken({
-      id: data?.user?.id || "",
+      id: authUserId || "",
+      staffId: staffRecord?.id || null, // Staff table ID for inventory requests
       email: data?.user?.email || "",
       role: data?.user?.user_metadata?.role,
     });
@@ -44,7 +55,8 @@ export const mobileSignIn = async (c: any) => {
     return successResponse({
       token,
       user: {
-        id: data?.user?.id,
+        id: authUserId,
+        staffId: staffRecord?.id || null,
         email: data?.user?.email,
         role: data?.user?.user_metadata?.role || null,
         first_name: data?.user?.user_metadata?.firstName || null,

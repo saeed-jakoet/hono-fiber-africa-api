@@ -26,6 +26,8 @@ import {
   mobileListInventory,
   mobileGetJobInventory,
   mobileApplyInventoryUsage,
+  mobileGetMyRequests,
+  mobileGetJobRequests,
 } from "../controllers/mobile";
 
 const mobile = new Hono();
@@ -62,5 +64,7 @@ mobile.get("/documents/signed-url", mobileGetSignedUrl);
 mobile.get("/inventory", mobileListInventory);
 mobile.get("/inventory/job/:jobId", mobileGetJobInventory);
 mobile.post("/inventory/usage", mobileApplyInventoryUsage);
+mobile.get("/inventory/requests", mobileGetMyRequests);
+mobile.get("/inventory/requests/job/:jobId", mobileGetJobRequests);
 
 export default mobile;

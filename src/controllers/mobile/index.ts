@@ -31,4 +31,6 @@ export {
   mobileListInventory,
   mobileGetJobInventory,
   mobileApplyInventoryUsage,
+  mobileGetMyRequests,
+  mobileGetJobRequests,
 } from "./inventory";
