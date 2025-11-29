@@ -30,6 +30,7 @@ app.use(
       "https://react-admin-hub.vercel.app",
       "http://localhost:8081", // Expo dev server
       "http://192.168.3.89:8081", // Expo on local network
+      "*"
     ],
     credentials: true,
   })
