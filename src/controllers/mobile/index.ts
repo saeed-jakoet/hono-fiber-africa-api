@@ -34,3 +34,6 @@ export {
   mobileGetMyRequests,
   mobileGetJobRequests,
 } from "./inventory";
+
+// Location controllers
+export { mobileUpdateLocation } from "./location";

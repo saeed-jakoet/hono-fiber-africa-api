@@ -28,6 +28,8 @@ import {
   mobileApplyInventoryUsage,
   mobileGetMyRequests,
   mobileGetJobRequests,
+  // Location
+  mobileUpdateLocation,
 } from "../controllers/mobile";
 
 const mobile = new Hono();
@@ -66,5 +68,8 @@ mobile.get("/inventory/job/:jobId", mobileGetJobInventory);
 mobile.post("/inventory/usage", mobileApplyInventoryUsage);
 mobile.get("/inventory/requests", mobileGetMyRequests);
 mobile.get("/inventory/requests/job/:jobId", mobileGetJobRequests);
+
+// --- Location ---
+mobile.patch("/location", mobileUpdateLocation);
 
 export default mobile;

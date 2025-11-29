@@ -48,6 +48,7 @@ export async function requireMobileAuth(c: any): Promise<any | null> {
  */
 export async function generateMobileToken(payload: {
   id: string;
+  staffId?: string | null;
   email: string;
   role?: string;
 }): Promise<string> {

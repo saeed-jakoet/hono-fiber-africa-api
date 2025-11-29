@@ -6,6 +6,7 @@ import {
   getStaffByAuthUserId,
   updateStaff,
   createStaff,
+  getStaffLocations,
 } from "../queries/staff";
 import {
   createStaffWithAuthSchema,
@@ -549,6 +550,24 @@ export const revealNationalIdController = async (c: any) => {
 
     return successResponse({ national_id: value }, "National ID revealed");
   } catch (e: any) {
+    return errorResponse(e.message || "Unexpected error", 500);
+  }
+};
+
+// Get all staff locations (for dashboard map)
+export const getStaffLocationsController = async (c: any) => {
+  try {
+    // Use admin client to bypass RLS for location queries
+    const db = getAdminClient();
+    const { data, error } = await getStaffLocations(db);
+
+    if (error) {
+      console.error("Error fetching staff locations:", error);
+      return errorResponse(error.message, 400);
+    }
+    return successResponse({ locations: data }, "Staff locations retrieved");
+  } catch (e: any) {
+    console.error("Error in getStaffLocationsController:", e);
     return errorResponse(e.message || "Unexpected error", 500);
   }
 };

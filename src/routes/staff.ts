@@ -1,12 +1,13 @@
 import { Hono } from "hono";
 import { requireRole } from "../middleware/requireRole";
-import { getStaffList, getStaffMember, updateStaffController, createStaffWithAuthController, createStaffController, grantAccessController, revokeAccessController, listStaffDocumentsController, revealNationalIdController, getMyStaffProfile } from "../controllers/staff";
+import { getStaffList, getStaffMember, updateStaffController, createStaffWithAuthController, createStaffController, grantAccessController, revokeAccessController, listStaffDocumentsController, revealNationalIdController, getMyStaffProfile, getStaffLocationsController } from "../controllers/staff";
 
 const staffRoutes = new Hono();
 
 // 1. List and get staff
 staffRoutes.get("/", requireRole(["super_admin", "admin"]), getStaffList);
 staffRoutes.get("/me", requireRole(["super_admin", "admin", "manager", "technician"]), getMyStaffProfile);
+staffRoutes.get("/locations", requireRole(["super_admin", "admin", "manager"]), getStaffLocationsController);
 staffRoutes.get("/:id", requireRole(["super_admin", "admin"]), getStaffMember);
 
 // 2. Create staff
