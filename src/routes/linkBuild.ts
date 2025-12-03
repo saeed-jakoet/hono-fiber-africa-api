@@ -8,12 +8,14 @@ import {
   getLinkBuildsByTechnician,
   deleteLinkBuild,
   getLinkBuildWeeklyTotals,
+  getOrderCosts,
 } from "../controllers/linkBuild";
 
 const linkBuild = new Hono();
 
 linkBuild.get("/", getLinkBuilds);
 linkBuild.get("/:id", getLinkBuild);
+linkBuild.get("/:id/costs", getOrderCosts);
 linkBuild.get("/client/:clientName", getLinkBuildsByClient);
 linkBuild.get("/technician/:technicianName", getLinkBuildsByTechnician);
 

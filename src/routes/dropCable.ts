@@ -8,6 +8,7 @@ import {
   getDropCablesByTechnician,
   sendDropCableAccessRequest,
   deleteDropCable,
+  getOrderCosts,
 } from "../controllers/dropCable";
 import { requireRole } from "../middleware/requireRole";
 import { getWeeklyTotals } from "../controllers/dropCable";
@@ -16,6 +17,7 @@ const dropCable = new Hono();
 
 dropCable.get("/", getDropCables);
 dropCable.get("/:id", getDropCable);
+dropCable.get("/:id/costs", getOrderCosts);
 dropCable.get("/client/:clientId", getDropCablesByClient);
 dropCable.get("/technician/:technicianId", getDropCablesByTechnician);
 

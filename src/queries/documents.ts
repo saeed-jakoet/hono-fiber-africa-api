@@ -4,6 +4,7 @@ export type DocumentRow = {
   id: string;
   job_type: string;
   drop_cable_job_id?: string | null;
+  link_build_job_id?: string | null;
   client_id: string;
   category: string;
   file_path: string;
@@ -30,14 +31,17 @@ export async function listDocumentsByJob(
   jobType: string,
   jobId: string
 ) {
-  // For drop_cable jobs, filter on drop_cable_job_id
   const query = db.from("documents").select("*").eq("job_type", jobType);
+  
   if (jobType === "drop_cable") {
     query.eq("drop_cable_job_id", jobId);
+  } else if (jobType === "link_build") {
+    query.eq("link_build_job_id", jobId);
   } else {
-    // Fallback for any future job types (adjust when schema evolves)
+    // Fallback for any future job types
     query.eq("drop_cable_job_id", jobId);
   }
+  
   const { data, error } = await query.order("created_at", { ascending: false });
   return { data: (data as DocumentRow[]) ?? [], error };
 }

@@ -17,19 +17,31 @@ export const uploadDocumentSchema = z.object({
   clientName: z.string().min(1),
   clientIdentifier: z.string().min(1),
   jobType: jobTypeEnum, // e.g., 'drop_cable'
-  category: documentCategoryEnum,
+  // category is now optional - use fileName instead for custom names
+  category: documentCategoryEnum.optional(),
+  // fileName for custom document names (replaces category for storage)
+  fileName: z.string().optional(),
   // Prefer new field; keep old jobId for backward compatibility
   dropCableJobId: z.string().uuid().optional(),
+  linkBuildJobId: z.string().uuid().optional(),
   jobId: z.string().uuid().optional(),
   clientId: z.string().uuid(),
   circuitNumber: z.string().optional(),
 }).superRefine((val, ctx) => {
   // Require one of the job id fields
-  if (!val.dropCableJobId && !val.jobId) {
+  if (!val.dropCableJobId && !val.linkBuildJobId && !val.jobId) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["dropCableJobId"],
-      message: "dropCableJobId (or jobId) is required",
+      message: "dropCableJobId, linkBuildJobId, or jobId is required",
+    });
+  }
+  // Require either category or fileName
+  if (!val.category && !val.fileName) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["fileName"],
+      message: "Either category or fileName is required",
     });
   }
   if (val.jobType === "drop_cable" && (!val.circuitNumber || val.circuitNumber.trim() === "")) {

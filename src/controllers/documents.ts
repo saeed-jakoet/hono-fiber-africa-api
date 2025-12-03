@@ -75,10 +75,14 @@ export const uploadDocument = async (c: any) => {
       clientName: String(form.get("clientName") || ""),
       clientIdentifier: String(form.get("clientIdentifier") || ""),
       jobType: String(form.get("jobType") || ""),
-      category: String(form.get("category") || ""),
+      category: form.get("category") ? String(form.get("category")) : undefined,
+      fileName: form.get("fileName") ? String(form.get("fileName")) : undefined,
       // New field preferred
       dropCableJobId: form.get("dropCableJobId")
         ? String(form.get("dropCableJobId"))
+        : undefined,
+      linkBuildJobId: form.get("linkBuildJobId")
+        ? String(form.get("linkBuildJobId"))
         : undefined,
       // Back-compat field
       jobId: form.get("jobId") ? String(form.get("jobId")) : undefined,
@@ -91,11 +95,14 @@ export const uploadDocument = async (c: any) => {
     const parsed = uploadDocumentSchema.safeParse(fields);
     if (!parsed.success) return errorResponse("Invalid input", 400);
 
+    // Use fileName if provided, otherwise fall back to category
+    const fileBaseName = parsed.data.fileName || parsed.data.category || "document";
+
     const folderPath = buildPath({
       clientName: parsed.data.clientName,
       circuitNumber: parsed.data.circuitNumber,
       jobType: parsed.data.jobType,
-      fileBaseName: parsed.data.category,
+      fileBaseName: fileBaseName,
       originalFileName: (file as File).name,
     });
 
@@ -116,12 +123,21 @@ export const uploadDocument = async (c: any) => {
       uploadedBy = authData?.user?.id;
     } catch {}
 
+    // Determine job ID field based on job type
+    const dropCableJobId = parsed.data.jobType === "drop_cable" 
+      ? (parsed.data.dropCableJobId || parsed.data.jobId || null)
+      : null;
+    const linkBuildJobId = parsed.data.jobType === "link_build"
+      ? (parsed.data.linkBuildJobId || parsed.data.jobId || null)
+      : null;
+
     // Insert using service role client (bypass RLS)
     const { data, error } = await insertDocument(adminDb, {
       job_type: parsed.data.jobType,
-      drop_cable_job_id: parsed.data.dropCableJobId || parsed.data.jobId || null,
+      drop_cable_job_id: dropCableJobId,
+      link_build_job_id: linkBuildJobId,
       client_id: parsed.data.clientId,
-      category: parsed.data.category,
+      category: parsed.data.category || fileBaseName,
       file_path: folderPath,
       file_name: folderPath.split("/").pop() || "document.pdf",
       circuit_number: parsed.data.circuitNumber ?? null,
@@ -144,6 +160,36 @@ export const listDocumentsForJob = async (c: any) => {
     if (!jobType || !jobId) return errorResponse("Missing job type or id", 400);
     const adminDb = getAdminClient();
     const { data, error } = await listDocumentsByJob(adminDb, jobType, jobId);
+    if (error) return errorResponse(error.message, 400);
+    return successResponse(data ?? [], "Documents fetched");
+  } catch (e: any) {
+    console.error(e);
+    return errorResponse(e.message || "Unexpected error", 500);
+  }
+};
+
+// Convenience handler for drop_cable documents
+export const listDocumentsForDropCable = async (c: any) => {
+  try {
+    const jobId = c.req.param("jobId");
+    if (!jobId) return errorResponse("Missing job id", 400);
+    const adminDb = getAdminClient();
+    const { data, error } = await listDocumentsByJob(adminDb, "drop_cable", jobId);
+    if (error) return errorResponse(error.message, 400);
+    return successResponse(data ?? [], "Documents fetched");
+  } catch (e: any) {
+    console.error(e);
+    return errorResponse(e.message || "Unexpected error", 500);
+  }
+};
+
+// Convenience handler for link_build documents
+export const listDocumentsForLinkBuild = async (c: any) => {
+  try {
+    const jobId = c.req.param("jobId");
+    if (!jobId) return errorResponse("Missing job id", 400);
+    const adminDb = getAdminClient();
+    const { data, error } = await listDocumentsByJob(adminDb, "link_build", jobId);
     if (error) return errorResponse(error.message, 400);
     return successResponse(data ?? [], "Documents fetched");
   } catch (e: any) {

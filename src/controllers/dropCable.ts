@@ -369,3 +369,189 @@ export const getWeeklyTotals = async (c: any) => {
 function round2(n: number) {
   return Math.round(n * 100) / 100;
 }
+
+// Calculate costs for a single drop cable order
+export const getOrderCosts = async (c: any) => {
+  try {
+    const db = getSupabaseForRequest(c);
+    const orderId = c.req.param("id");
+    
+    if (!orderId) return errorResponse("Missing order id", 400);
+
+    // Fetch the order
+    const { data: order, error: orderErr } = await db
+      .from("drop_cable")
+      .select(
+        "id, client_id, circuit_number, site_b_name, county, pm, dpc_distance_meters, survey_planning, callout, installation, spon_budi_opti, splitter_install, mousepad_install, additonal_cost, additonal_cost_reason, install_completion_percent, quote_no, survey_planning_multiplier, callout_multiplier, week"
+      )
+      .eq("id", orderId)
+      .single();
+
+    if (orderErr) return errorResponse(orderErr.message, 400);
+    if (!order) return errorResponse("Order not found", 404);
+
+    // Fetch service costs for this client
+    const { data: costs, error: costErr } = await getServiceCostByClientAndOrderType(
+      db,
+      order.client_id,
+      "drop_cable"
+    );
+    if (costErr) return errorResponse(costErr.message, 400);
+    const price = costs || {};
+
+    // Helper to include cost only when flag is true
+    const take = (flag: any, val: any) => (flag ? Number(val || 0) : 0);
+
+    const o = order;
+    const pct = Number(o.install_completion_percent);
+    const hasPct = Number.isFinite(pct) && pct >= 0 && pct <= 100;
+
+    // Get multipliers from order (default to 1 if not set)
+    const surveyMult = Number(o.survey_planning_multiplier) || 1;
+    const calloutMult = Number(o.callout_multiplier) || 1;
+
+    // Build cost breakdown with rates
+    const breakdown: any = {
+      services: [],
+      installation: null,
+      additional: null,
+      rates: {
+        survey_planning_rate: Number(price.survey_planning_cost || 0),
+        callout_rate: Number(price.callout_cost || 0),
+        installation_flat_rate: Number(price.installation_cost || 0),
+        per_meter_rate: Number(price.per_meter_rate || 0),
+        discount_rate: Number(price.discount || 0.85),
+        spon_budi_opti_rate: Number(price.spon_budi_opti_cost || 0),
+        splitter_install_rate: Number(price.splitter_install_cost || 0),
+        mousepad_install_rate: Number(price.mousepad_install_cost || 0),
+      }
+    };
+
+    let subtotal = 0;
+
+    // Survey Planning
+    if (o.survey_planning) {
+      const rate = Number(price.survey_planning_cost || 0);
+      const cost = rate * surveyMult;
+      breakdown.services.push({
+        name: "Survey Planning",
+        rate,
+        multiplier: surveyMult,
+        cost: round2(cost),
+        active: true,
+      });
+      subtotal += cost;
+    }
+
+    // Callout
+    if (o.callout) {
+      const rate = Number(price.callout_cost || 0);
+      const cost = rate * calloutMult;
+      breakdown.services.push({
+        name: "Callout",
+        rate,
+        multiplier: calloutMult,
+        cost: round2(cost),
+        active: true,
+      });
+      subtotal += cost;
+    }
+
+    // Installation (distance-based)
+    if (o.installation) {
+      const distance = Number(o.dpc_distance_meters || 0);
+      const flat = Number(price.installation_cost || 0);
+      const perMeter = Number(price.per_meter_rate || 0);
+      const discountRate = Number(price.discount || 0.85);
+      
+      const base = distance < 101 ? flat : distance * perMeter;
+      const discounted = base * discountRate;
+      
+      let finalCost = discounted;
+      let percentApplied = null;
+      
+      if (hasPct && pct > 0) {
+        finalCost = discounted * (pct / 100);
+        percentApplied = pct;
+      }
+
+      breakdown.installation = {
+        distance,
+        base_calculation: distance < 101 ? "flat_rate" : "per_meter",
+        base_amount: round2(base),
+        discount_rate: discountRate,
+        after_discount: round2(discounted),
+        completion_percent: percentApplied,
+        final_cost: round2(finalCost),
+        active: true,
+      };
+      subtotal += finalCost;
+    }
+
+    // SPON Budi Opti
+    if (o.spon_budi_opti) {
+      const cost = Number(price.spon_budi_opti_cost || 0);
+      breakdown.services.push({
+        name: "SPON Budi Opti",
+        rate: cost,
+        multiplier: 1,
+        cost: round2(cost),
+        active: true,
+      });
+      subtotal += cost;
+    }
+
+    // Splitter Install
+    if (o.splitter_install) {
+      const cost = Number(price.splitter_install_cost || 0);
+      breakdown.services.push({
+        name: "Splitter Install",
+        rate: cost,
+        multiplier: 1,
+        cost: round2(cost),
+        active: true,
+      });
+      subtotal += cost;
+    }
+
+    // Mousepad Install
+    if (o.mousepad_install) {
+      const cost = Number(price.mousepad_install_cost || 0);
+      breakdown.services.push({
+        name: "Mousepad Install",
+        rate: cost,
+        multiplier: 1,
+        cost: round2(cost),
+        active: true,
+      });
+      subtotal += cost;
+    }
+
+    // Additional costs
+    const additionalCost = Number(o.additonal_cost || 0);
+    if (additionalCost > 0) {
+      breakdown.additional = {
+        amount: round2(additionalCost),
+        reason: o.additonal_cost_reason || null,
+      };
+      subtotal += additionalCost;
+    }
+
+    const total = round2(subtotal);
+
+    return successResponse({
+      order_id: o.id,
+      circuit_number: o.circuit_number,
+      site_b_name: o.site_b_name,
+      week: o.week,
+      quote_no: o.quote_no,
+      breakdown,
+      subtotal: round2(subtotal - additionalCost),
+      additional_cost: additionalCost,
+      total,
+    }, "Order costs calculated");
+  } catch (e: any) {
+    console.error(e);
+    return errorResponse(e.message || "Unexpected error", 500);
+  }
+};
